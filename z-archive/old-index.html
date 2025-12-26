@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BURNERNET AUTH PORTAL</title>
+    <style>
+        /* Corporate auth portal theme - Clean blue/white */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #e0f6da;
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+        h1 {
+            color: #189385;
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+        }
+        button {
+            padding: 1rem 2rem;
+            font-size: 1.2rem;
+            background: #189385;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #157a6d;
+        }
+    </style>
+</head>
+<body>
+    <!--
+      index.html - Splash Screen
+      
+      Purpose:
+      The captive portal redirects here automatically.
+      
+      Logic:
+      - If localStorage.hasIntranetAccess === "true" → instantly redirect to intranet/index.html
+      - Otherwise show:
+        - Retro header: "BURNERNET AUTH PORTAL"
+        - Button: [Create Account] → portal/create.html
+    -->
+    <script>
+        // Redirect to the new entry point
+        window.location.replace('/connect/get-online.html');
+    </script>
+</body>
+</html>
+

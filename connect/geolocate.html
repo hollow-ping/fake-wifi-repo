@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Satellite Connection Debug</title>
+    <style>
+        /* Terminal/code editor theme - Dark background */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Courier New', monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #569cd6;
+            margin-bottom: 1.5rem;
+        }
+        .code-editor {
+            background: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 5px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        .code-line {
+            margin: 0.5rem 0;
+            font-size: 0.9rem;
+        }
+        .error-line {
+            background: rgba(255, 0, 0, 0.2);
+            border-left: 3px solid #f48771;
+            padding-left: 0.5rem;
+            color: #f48771;
+        }
+        .keyword {
+            color: #569cd6;
+        }
+        .string {
+            color: #ce9178;
+        }
+        .number {
+            color: #b5cea8;
+        }
+        button {
+            padding: 0.75rem 1.5rem;
+            background: #0e639c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 0.5rem 0.5rem 0.5rem 0;
+            font-family: 'Courier New', monospace;
+        }
+        button:hover {
+            background: #1177bb;
+        }
+    </style>
+</head>
+<body>
+    <!--
+      debug.html - Fake Source Code Error
+      
+      UI idea:
+      A fake code editor with retro styling, showing something like:
+      
+      if (connection.stable && user.trustworthy && vibes >= 7.4) {
+          connectToSatellite();
+      } else {
+          throw new Error("VibeError: vibes_not_high_enough");
+      }
+      
+      Highlight the failing line, red underline, etc.
+      
+      Button:
+      - [Apply Unreviewed Hotfix]
+      - [Comment Out Sanity Checks]
+      
+      After they click:
+      → Redirect to connecting.html
+    -->
+    <div class="container">
+        <h1>Satellite Connection Debug</h1>
+        <div class="code-editor">
+            <div class="code-line"><span class="keyword">if</span> (connection.<span class="keyword">stable</span> && user.<span class="keyword">trustworthy</span> && vibes >= <span class="number">7.4</span>) {</div>
+            <div class="code-line">    connectToSatellite();</div>
+            <div class="code-line">} <span class="keyword">else</span> {</div>
+            <div class="code-line error-line">    <span class="keyword">throw</span> <span class="keyword">new</span> Error(<span class="string">"VibeError: vibes_not_high_enough"</span>);</div>
+            <div class="code-line">}</div>
+        </div>
+        <button onclick="window.location.href='error666.html'">Apply Unreviewed Hotfix</button>
+        <button onclick="window.location.href='error666.html'">Comment Out Sanity Checks</button>
+    </div>
+</body>
+</html>

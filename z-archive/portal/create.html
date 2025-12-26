@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Account - BURNERNET</title>
+    <style>
+        /* Corporate auth portal theme - Clean blue/white */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #e0f6da;
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 90%;
+        }
+        h1 {
+            color: #189385;
+            margin-bottom: 1.5rem;
+        }
+        h2 {
+            color: #189385;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+        label {
+            display: block;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        .input-wrapper {
+            position: relative;
+        }
+        input[type="text"],
+        input[type="password"],
+        select {
+            width: 100%;
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .status-icon {
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(calc(-50% - 0.15rem));
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #189385;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .check-icon {
+            color: #28a745;
+            font-size: 20px;
+            line-height: 1;
+        }
+        .x-icon {
+            color: #dc3545;
+            font-size: 20px;
+            line-height: 1;
+        }
+        .status-message {
+            font-size: 0.875rem;
+            margin-top: -0.5rem;
+            margin-bottom: 0.5rem;
+            min-height: 1.25rem;
+        }
+        .status-taken {
+            color: #dc3545;
+        }
+        .status-available {
+            color: #28a745;
+        }
+        .suggestion {
+            color: #189385;
+            cursor: pointer;
+            text-decoration: underline;
+            font-weight: 500;
+        }
+        .suggestion:hover {
+            color: #157a6d;
+        }
+        .error-message {
+            color: #dc3545;
+            font-size: 0.875rem;
+            margin-top: -0.5rem;
+            margin-bottom: 0.5rem;
+            min-height: 1.25rem;
+        }
+        #formError {
+            margin-top: 0.5rem;
+            margin-bottom: 0;
+            text-align: left;
+        }
+        input.error,
+        select.error {
+            border-color: #dc3545;
+        }
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            background: #189385;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 1rem;
+        }
+        button:hover {
+            background: #157a6d;
+        }
+    </style>
+</head>
+<body>
+    <!--
+      create.html - "Create Account" Screen
+      
+      UI elements:
+      - Burner Name field
+      - 5 funny demographic/interest questions
+      - Next button to go to password screen
+      
+      Logic:
+      - On Next:
+        - Save form data temporarily (or just burner name)
+        - Redirect to: password.html
+    -->
+    <div class="container">
+        <h1>Create Account</h1>
+        <form id="createForm">
+            <label>Burner Name:</label>
+            <div class="input-wrapper">
+                <input type="text" id="burnerName" required>
+                <div id="statusIcon" class="status-icon" style="display: none;"></div>
+            </div>
+            <div id="statusMessage" class="status-message"></div>
+            
+            <label>What's your ideal superpower?</label>
+            <select id="superpower" required>
+                <option value="">Select one...</option>
+                <option value="invisibility">Invisibility</option>
+                <option value="flying">Flying</option>
+                <option value="teleportation">Teleportation</option>
+                <option value="time-travel">Time Travel</option>
+                <option value="mind-reading">Mind Reading</option>
+                <option value="shapeshifting">Shapeshifting</option>
+                <option value="super-strength">Super Strength</option>
+                <option value="other">Other</option>
+            </select>
+            <div id="superpowerError" class="error-message"></div>
+            
+            <!-- Commented out for faster testing -->
+            <!--
+            <label>Preferred method of time travel?</label>
+            <select id="timeTravel" required>
+                <option value="">Select one...</option>
+                <option value="delorean">Delorean (Back to the Future style)</option>
+                <option value="phone-booth">Phone Booth</option>
+                <option value="tardis">TARDIS</option>
+                <option value="time-machine">Classic Time Machine</option>
+                <option value="portal">Portal/Gateway</option>
+                <option value="quantum">Quantum Leap</option>
+                <option value="none">I don't believe in time travel</option>
+            </select>
+            <div id="timeTravelError" class="error-message"></div>
+            
+            <label>Favorite type of sandwich?</label>
+            <select id="sandwich" required>
+                <option value="">Select one...</option>
+                <option value="pbj">PB&J</option>
+                <option value="blt">BLT</option>
+                <option value="grilled-cheese">Grilled Cheese</option>
+                <option value="club">Club Sandwich</option>
+                <option value="reuben">Reuben</option>
+                <option value="sub">Sub/Hoagie</option>
+                <option value="banh-mi">Banh Mi</option>
+                <option value="other">Other (you're wrong)</option>
+            </select>
+            <div id="sandwichError" class="error-message"></div>
+            
+            <label>How would you prefer to communicate with aliens?</label>
+            <select id="aliens" required>
+                <option value="">Select one...</option>
+                <option value="telepathy">Telepathy</option>
+                <option value="universal-translator">Universal Translator</option>
+                <option value="music">Music/Math (Close Encounters style)</option>
+                <option value="emoji">Emoji</option>
+                <option value="dance">Interpretive Dance</option>
+                <option value="avoid">Avoid all contact</option>
+                <option value="other">Other</option>
+            </select>
+            <div id="aliensError" class="error-message"></div>
+            
+            <label>What's your stance on pineapple on pizza?</label>
+            <select id="pizza" required>
+                <option value="">Select one...</option>
+                <option value="love">Love it (correct answer)</option>
+                <option value="hate">Hate it (you're wrong)</option>
+                <option value="neutral">Neutral/Indifferent</option>
+                <option value="never-tried">Never tried it</option>
+                <option value="depends">Depends on the mood</option>
+            </select>
+            <div id="pizzaError" class="error-message"></div>
+            -->
+            
+            <button type="submit" id="nextBtn">Next</button>
+            <div id="formError" class="error-message"></div>
+        </form>
+    </div>
+    
+    <script src="../../js/main.js"></script>
+    <script>
+        const burnerNameInput = document.getElementById('burnerName');
+        const statusIcon = document.getElementById('statusIcon');
+        const statusMessage = document.getElementById('statusMessage');
+        let checkTimeout;
+
+        // Count numbers in a string
+        function countNumbers(str) {
+            return (str.match(/\d/g) || []).length;
+        }
+
+        // Generate suggested name with random numbers
+        function generateSuggestion(baseName) {
+            const numCount = 5 + Math.floor(Math.random() * 3); // 5-7 numbers
+            let numbers = '';
+            for (let i = 0; i < numCount; i++) {
+                numbers += Math.floor(Math.random() * 10);
+            }
+            return baseName + numbers;
+        }
+
+        // Check username availability
+        function checkUsername(name) {
+            if (!name || name.trim() === '') {
+                statusIcon.style.display = 'none';
+                statusMessage.textContent = '';
+                return;
+            }
+
+            // Show loading spinner
+            statusIcon.style.display = 'block';
+            statusIcon.innerHTML = '<div class="spinner"></div>';
+            statusMessage.textContent = '';
+
+            // Simulate API check delay
+            setTimeout(() => {
+                const numCount = countNumbers(name);
+                const isAvailable = numCount >= 4;
+
+                if (isAvailable) {
+                    // Available
+                    statusIcon.innerHTML = '<span class="check-icon">✓</span>';
+                    statusMessage.className = 'status-message status-available';
+                    statusMessage.textContent = 'Burner name is available';
+                } else {
+                    // Taken
+                    statusIcon.innerHTML = '<span class="x-icon">✗</span>';
+                    statusMessage.className = 'status-message status-taken';
+                    const suggestion = generateSuggestion(name);
+                    statusMessage.innerHTML = `Sorry that Burner name is already taken<br>Suggestion: <span class="suggestion" data-suggestion="${suggestion}">${suggestion}</span>`;
+                }
+            }, 500 + Math.random() * 500); // Random delay between 500-1000ms
+        }
+
+        // Debounced input handler
+        burnerNameInput.addEventListener('input', function(e) {
+            clearTimeout(checkTimeout);
+            const name = e.target.value.trim();
+            
+            // Clear validation error if present
+            document.getElementById('formError').textContent = '';
+            burnerNameInput.classList.remove('error');
+            
+            if (name === '') {
+                statusIcon.style.display = 'none';
+                statusMessage.textContent = '';
+                return;
+            }
+
+            checkTimeout = setTimeout(() => {
+                checkUsername(name);
+            }, 300); // Wait 300ms after user stops typing
+        });
+
+        // Handle suggestion clicks using event delegation
+        statusMessage.addEventListener('click', function(e) {
+            if (e.target.classList.contains('suggestion')) {
+                const suggestion = e.target.getAttribute('data-suggestion');
+                burnerNameInput.value = suggestion;
+                burnerNameInput.dispatchEvent(new Event('input'));
+            }
+        });
+
+        // Clear error messages when user interacts with fields
+        function clearError(fieldId, errorId) {
+            const field = document.getElementById(fieldId);
+            const error = document.getElementById(errorId);
+            if (field) field.classList.remove('error');
+            if (error) error.textContent = '';
+        }
+
+        // Show error message
+        function showError(fieldId, errorId, message) {
+            const field = document.getElementById(fieldId);
+            const error = document.getElementById(errorId);
+            if (field) field.classList.add('error');
+            if (error) {
+                error.textContent = message;
+                // If it's the statusMessage, make sure it shows as error
+                if (errorId === 'statusMessage') {
+                    error.className = 'status-message status-taken';
+                }
+            }
+        }
+
+        document.getElementById('superpower').addEventListener('change', function() {
+            clearError('superpower', 'superpowerError');
+        });
+        // Commented out for faster testing
+        /*
+        document.getElementById('timeTravel').addEventListener('change', function() {
+            clearError('timeTravel', 'timeTravelError');
+        });
+        document.getElementById('sandwich').addEventListener('change', function() {
+            clearError('sandwich', 'sandwichError');
+        });
+        document.getElementById('aliens').addEventListener('change', function() {
+            clearError('aliens', 'aliensError');
+        });
+        document.getElementById('pizza').addEventListener('change', function() {
+            clearError('pizza', 'pizzaError');
+        });
+        */
+
+        // Form submission
+        document.getElementById('createForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            let hasErrors = false;
+
+            // Clear all previous errors
+            document.querySelectorAll('.error-message').forEach(el => el.textContent = '');
+            document.querySelectorAll('input, select').forEach(el => el.classList.remove('error'));
+            document.getElementById('formError').textContent = '';
+
+            const burnerName = burnerNameInput.value.trim();
+            
+            // Validate burner name (inline error)
+            if (!burnerName) {
+                showError('burnerName', 'formError', 'Please review your answers and try again');
+                hasErrors = true;
+            } else {
+                // Check if name is available (has 4+ numbers)
+                const numCount = countNumbers(burnerName);
+                if (numCount < 4) {
+                    document.getElementById('formError').textContent = 'Please review your answers and try again';
+                    burnerNameInput.classList.add('error');
+                    hasErrors = true;
+                }
+            }
+
+            // Validate all required fields
+            const requiredFields = [
+                { id: 'superpower', errorId: 'superpowerError', name: 'superpower' }
+                // Commented out for faster testing
+                // { id: 'timeTravel', errorId: 'timeTravelError', name: 'time travel method' },
+                // { id: 'sandwich', errorId: 'sandwichError', name: 'sandwich' },
+                // { id: 'aliens', errorId: 'aliensError', name: 'alien communication method' },
+                // { id: 'pizza', errorId: 'pizzaError', name: 'pizza stance' }
+            ];
+
+            requiredFields.forEach(field => {
+                const element = document.getElementById(field.id);
+                if (!element || !element.value || element.value === '') {
+                    showError(field.id, field.errorId, `Please select a ${field.name}.`);
+                    hasErrors = true;
+                }
+            });
+
+            if (hasErrors) {
+                return;
+            }
+            
+            // Save burner name temporarily (will be saved again on password screen)
+            setBurnerName(burnerName);
+            window.location.href = 'create-account/password.html';
+        });
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Verification</title>
+    <style>
+        /* Security vendor theme - Green/blue security aesthetic */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #0f4c75 0%, #3282b8 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            position: relative;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+        h1 {
+            margin-bottom: 0.5rem;
+        }
+        .progress {
+            margin-bottom: 1rem;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
+        }
+        .question {
+            margin-bottom: 1.5rem;
+            font-size: 1.1rem;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+            margin: 2rem auto;
+            max-width: 450px;
+            width: 100%;
+        }
+        .grid-item {
+            aspect-ratio: 1;
+            background: white;
+            border: 3px solid transparent;
+            border-radius: 4px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        .grid-item:hover:not(.selected):not(.blank) {
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: scale(1.05);
+        }
+        .grid-item.selected {
+            border: 6px solid #000000;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+            transform: scale(0.95);
+        }
+        .grid-item.selected:hover {
+            transform: scale(0.95);
+        }
+        .grid-item.blank {
+            background: #f0f0f0;
+            cursor: default;
+        }
+        .grid-item.blank:hover {
+            transform: none;
+        }
+        .grid-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .grid-item.sg-tile {
+            background-size: 300%;
+            background-repeat: no-repeat;
+            background-color: white;
+        }
+        button {
+            padding: 0.75rem 2rem;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 1rem;
+            transition: background 0.3s ease;
+        }
+        button:hover:not(:disabled) {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .error-message {
+            color: #ff9800;
+            margin-top: 1rem;
+            min-height: 1.5rem;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* What is this? button */
+        .info-button {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+        .info-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        .info-panel {
+            position: fixed;
+            bottom: 4rem;
+            right: 1rem;
+            max-width: 300px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 1rem;
+            border-radius: 5px;
+            font-size: 0.75rem;
+            line-height: 1.4;
+            color: rgba(255, 255, 255, 0.9);
+            display: none;
+            transition: all 0.3s ease;
+        }
+        .info-panel.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Security Verification</h1>
+        <div class="progress" id="progress">Loading...</div>
+        <div class="question" id="question">Loading...</div>
+        <div class="grid-container" id="gridContainer"></div>
+        <button id="submitBtn" onclick="submitCaptcha()" disabled>Verify</button>
+        <div class="error-message" id="errorMessage"></div>
+    </div>
+    
+    <button class="info-button" onclick="toggleInfo()">What is this?</button>
+    <div class="info-panel" id="infoPanel">
+        This verification system is part of our non-profit mission to identify humans and distinguish them from automated systems. By completing these challenges, you help us maintain the integrity of our network and ensure that real people can access our services. Your participation supports our research into human-computer interaction and helps us improve security measures for everyone.
+    </div>
+    
+    <script src="../js/main.js"></script>
+    <script>
+        // State
+        let currentCaptchaIndex = 0;
+        let selectedIndices = new Set();
+        let attempts = [0, 0]; // Track attempts per captcha
+        let captchaFolders = [];
+        let questions = [];
+        let currentQuestion = '';
+        let lastSubmittedSelection = new Set();
+        let currentCaptchaData = null;
+
+        // Load questions
+        async function loadQuestions() {
+            try {
+                const response = await fetch('../js/captcha-question-bank.json');
+                const data = await response.json();
+                questions = data.questions;
+            } catch (error) {
+                console.error('Error loading questions:', error);
+                questions = ['Select all images that contain the requested items.'];
+            }
+        }
+
+        // Get available captcha folders from manifest
+        async function getCaptchaFolders() {
+            try {
+                const response = await fetch('../js/captcha-manifest.json');
+                const data = await response.json();
+                if (data.folders && data.folders.length > 0) {
+                    return data.folders;
+                }
+            } catch (error) {
+                console.error('Error loading manifest:', error);
+            }
+            
+            // Fallback: try to detect or use default
+            // User can update manifest.json to add new folders
+            return ['sg/hope', 'split/burner']; // Fallback to old structure
+        }
+
+        // Detect images in a folder
+        async function detectImagesInFolder(folderPath) {
+            const images = [];
+            const extensions = ['.jpg', '.jpeg', '.png', '.JPG', '.JPEG', '.PNG'];
+            
+            // First, check if there's a single "image.jpg" or "image.png" to split
+            for (const ext of extensions) {
+                try {
+                    const img = new Image();
+                    const imagePath = `captcha-images/${folderPath}/image${ext}`;
+                    await new Promise((resolve, reject) => {
+                        img.onload = () => {
+                            images.push({
+                                index: 1,
+                                path: imagePath
+                            });
+                            resolve();
+                        };
+                        img.onerror = () => reject();
+                        img.src = imagePath;
+                        setTimeout(() => reject(), 1000);
+                    });
+                    // Found single image, return it
+                    return { images, count: 1 };
+                } catch (e) {
+                    // Continue to next extension
+                }
+            }
+            
+            // No single image found, look for numbered images (image-1.jpg, image-2.jpg, etc.)
+            for (let i = 1; i <= 50; i++) { // Check up to 50 images
+                let found = false;
+                for (const ext of extensions) {
+                    try {
+                        const img = new Image();
+                        const imagePath = `captcha-images/${folderPath}/image-${i}${ext}`;
+                        await new Promise((resolve, reject) => {
+                            img.onload = () => {
+                                images.push({
+                                    index: i,
+                                    path: imagePath
+                                });
+                                found = true;
+                                resolve();
+                            };
+                            img.onerror = () => reject();
+                            img.src = imagePath;
+                            setTimeout(() => reject(), 500); // Shorter timeout for numbered images
+                        });
+                        if (found) break; // Found this number, move to next
+                    } catch (e) {
+                        // This extension doesn't exist, try next
+                    }
+                }
+                
+                // If we didn't find image-N with any extension, and we have some images,
+                // we've probably reached the end of the sequence
+                if (!found && images.length > 0) {
+                    break;
+                }
+            }
+            
+            return { images, count: images.length };
+        }
+
+        // Load captcha
+        async function loadCaptcha() {
+            const gridContainer = document.getElementById('gridContainer');
+            const questionEl = document.getElementById('question');
+            const progressEl = document.getElementById('progress');
+            const submitBtn = document.getElementById('submitBtn');
+            
+            progressEl.textContent = `Captcha ${currentCaptchaIndex + 1} of 2`;
+            
+            // Select random question
+            currentQuestion = questions[Math.floor(Math.random() * questions.length)];
+            questionEl.textContent = currentQuestion;
+            
+            gridContainer.innerHTML = '<div class="loading"></div>';
+            selectedIndices.clear();
+            lastSubmittedSelection.clear();
+            submitBtn.disabled = true;
+            document.getElementById('errorMessage').textContent = '';
+            
+            const folderPath = captchaFolders[currentCaptchaIndex];
+            const { images, count } = await detectImagesInFolder(folderPath);
+            
+            currentCaptchaData = { folderPath, images, count };
+            
+            gridContainer.innerHTML = '';
+            
+            let slots = Array(9).fill(null);
+            let imageSlots = [];
+            
+            if (count === 1) {
+                // Single 900x900 image - split into 9
+                const imgPath = images[0].path;
+                for (let i = 0; i < 9; i++) {
+                    slots[i] = { type: 'split', path: imgPath, index: i };
+                    imageSlots.push(i);
+                }
+            } else if (count === 9) {
+                // Exactly 9 images - randomize order
+                const shuffled = [...images].sort(() => Math.random() - 0.5);
+                for (let i = 0; i < 9; i++) {
+                    slots[i] = { type: 'image', path: shuffled[i].path, index: i };
+                    imageSlots.push(i);
+                }
+            } else if (count >= 10) {
+                // 10+ images - pick random 9
+                const shuffled = [...images].sort(() => Math.random() - 0.5).slice(0, 9);
+                for (let i = 0; i < 9; i++) {
+                    slots[i] = { type: 'image', path: shuffled[i].path, index: i };
+                    imageSlots.push(i);
+                }
+            } else if (count >= 2 && count <= 8) {
+                // 2-8 images - use all, fill blanks randomly
+                const blankCount = 9 - count;
+                const blankIndices = [];
+                const allIndices = Array.from({ length: 9 }, (_, i) => i);
+                
+                // Randomly place images
+                const shuffledIndices = [...allIndices].sort(() => Math.random() - 0.5);
+                const imageIndices = shuffledIndices.slice(0, count);
+                const blankSlots = shuffledIndices.slice(count);
+                
+                let imgIdx = 0;
+                for (let i = 0; i < 9; i++) {
+                    if (imageIndices.includes(i)) {
+                        slots[i] = { type: 'image', path: images[imgIdx].path, index: i };
+                        imageSlots.push(i);
+                        imgIdx++;
+                    } else {
+                        slots[i] = { type: 'blank', index: i };
+                    }
+                }
+            } else {
+                // Fallback: show error
+                questionEl.textContent = 'Error loading captcha images';
+                return;
+            }
+            
+            // Render grid
+            for (let i = 0; i < 9; i++) {
+                const slot = slots[i];
+                const item = document.createElement('div');
+                item.className = 'grid-item';
+                item.dataset.index = i;
+                
+                if (slot.type === 'blank') {
+                    item.classList.add('blank');
+                } else if (slot.type === 'split') {
+                    // Single 900x900 image split into 9 pieces using CSS
+                    item.classList.add('sg-tile');
+                    const img = new Image();
+                    img.onload = function() {
+                        // For 900x900 image split into 3x3 grid (300x300 per tile)
+                        item.style.backgroundImage = `url(${img.src})`;
+                        item.style.backgroundSize = '300% 300%'; // 3x3 = 300%
+                        item.style.backgroundRepeat = 'no-repeat';
+                        
+                        // Calculate position for this specific tile (0-8)
+                        const row = Math.floor(slot.index / 3);
+                        const col = slot.index % 3;
+                        
+                        // Move background to show the correct tile
+                        // Each tile is 33.333% of the 300% size
+                        const xPercent = -col * 33.333;
+                        const yPercent = -row * 33.333;
+                        
+                        item.style.backgroundPosition = `${xPercent}% ${yPercent}%`;
+                    };
+                    img.onerror = function() {
+                        item.style.backgroundColor = 'white';
+                    };
+                    img.src = slot.path;
+                } else {
+                    const img = document.createElement('img');
+                    img.src = slot.path;
+                    img.alt = `Image ${slot.index + 1}`;
+                    img.onerror = function() {
+                        this.style.display = 'none';
+                        item.style.backgroundColor = 'white';
+                    };
+                    item.appendChild(img);
+                }
+                
+                if (slot.type === 'blank') {
+                    item.style.cursor = 'default';
+                } else {
+                    item.addEventListener('click', function() {
+                        toggleSelection(parseInt(this.dataset.index));
+                    });
+                }
+                
+                gridContainer.appendChild(item);
+            }
+        }
+
+        // Toggle selection
+        function toggleSelection(index) {
+            const item = document.querySelector(`[data-index="${index}"]`);
+            // Don't allow selecting blank tiles
+            if (item && item.classList.contains('blank')) {
+                return;
+            }
+            
+            if (selectedIndices.has(index)) {
+                selectedIndices.delete(index);
+            } else {
+                selectedIndices.add(index);
+            }
+            
+            if (item) {
+                item.classList.toggle('selected', selectedIndices.has(index));
+            }
+            
+            // Enable submit if selection changed from last submission
+            updateSubmitButton();
+        }
+
+        // Update submit button state
+        function updateSubmitButton() {
+            const submitBtn = document.getElementById('submitBtn');
+            const currentSelection = Array.from(selectedIndices).sort().join(',');
+            const lastSelection = Array.from(lastSubmittedSelection).sort().join(',');
+            
+            // Enable if selection changed and has at least one selection
+            if (currentSelection !== lastSelection && selectedIndices.size > 0) {
+                submitBtn.disabled = false;
+            } else {
+                submitBtn.disabled = true;
+            }
+        }
+
+        // Submit captcha
+        function submitCaptcha() {
+            attempts[currentCaptchaIndex]++;
+            const attemptCount = attempts[currentCaptchaIndex];
+            
+            // Pass logic: 30% chance OR 3 attempts
+            const shouldPass = attemptCount >= 3 || Math.random() < 0.3;
+            
+            if (!shouldPass) {
+                document.getElementById('errorMessage').textContent = 
+                    'Verification failed. Please try again.';
+                // Reset selection but keep it for comparison
+                selectedIndices.forEach(idx => {
+                    const item = document.querySelector(`[data-index="${idx}"]`);
+                    if (item) item.classList.remove('selected');
+                });
+                selectedIndices.clear();
+                lastSubmittedSelection.clear();
+                updateSubmitButton();
+                return;
+            }
+            
+            // Passed - move to next or complete
+            lastSubmittedSelection = new Set(selectedIndices);
+            currentCaptchaIndex++;
+            
+            if (currentCaptchaIndex < 2) {
+                loadCaptcha();
+            } else {
+                // Both captchas complete
+                const burnerName = commitBurnerName();
+                if (!burnerName) {
+                    const tempName = getTempBurnerName();
+                    if (tempName) {
+                        setBurnerName(tempName);
+                    }
+                }
+                window.location.href = '../create-account/success.html';
+            }
+        }
+
+        // Toggle info panel
+        function toggleInfo() {
+            const panel = document.getElementById('infoPanel');
+            panel.classList.toggle('show');
+        }
+
+        // Initialize
+        async function initialize() {
+            await loadQuestions();
+            captchaFolders = await getCaptchaFolders();
+            
+            // If we have folders, randomly select 2
+            if (captchaFolders.length >= 2) {
+                const shuffled = [...captchaFolders].sort(() => Math.random() - 0.5);
+                captchaFolders = shuffled.slice(0, 2);
+            } else if (captchaFolders.length === 1) {
+                // Use same folder twice if only one available
+                captchaFolders = [captchaFolders[0], captchaFolders[0]];
+            } else {
+                // Fallback to old structure
+                captchaFolders = ['sg/hope', 'split/burner'];
+            }
+            
+            loadCaptcha();
+        }
+
+        initialize();
+    </script>
+</body>
+</html>
+

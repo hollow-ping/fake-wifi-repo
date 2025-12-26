@@ -1,0 +1,127 @@
+{
+  "questions": [
+    {
+      "id": "time_preference",
+      "type": "multiple-choice",
+      "text": "What time of day do you feel most productive?",
+      "required": true,
+      "options": [
+        {"value": "early_morning", "label": "Early morning (5-8am)"},
+        {"value": "morning", "label": "Morning (8am-12pm)"},
+        {"value": "afternoon", "label": "Afternoon (12-5pm)"},
+        {"value": "evening", "label": "Evening (5-9pm)"},
+        {"value": "night", "label": "Night (9pm-2am)"},
+        {"value": "varies", "label": "It varies"}
+      ]
+    },
+    {
+      "id": "decision_making",
+      "type": "multiple-choice",
+      "text": "When making decisions, you tend to:",
+      "required": true,
+      "options": [
+        {"value": "quick", "label": "Decide quickly and move on"},
+        {"value": "research", "label": "Research thoroughly first"},
+        {"value": "intuition", "label": "Go with your gut feeling"},
+        {"value": "consult", "label": "Ask others for input"},
+        {"value": "procrastinate", "label": "Put it off until necessary"}
+      ]
+    },
+    {
+      "id": "learning_style",
+      "type": "multi-select",
+      "text": "How do you prefer to learn new things? (select all that apply)",
+      "required": true,
+      "options": [
+        {"value": "reading", "label": "Reading documentation or articles"},
+        {"value": "videos", "label": "Watching video tutorials"},
+        {"value": "hands_on", "label": "Hands-on experimentation"},
+        {"value": "examples", "label": "Looking at code examples"},
+        {"value": "teaching", "label": "Teaching others"},
+        {"value": "courses", "label": "Structured courses"}
+      ]
+    },
+    {
+      "id": "workspace",
+      "type": "text",
+      "text": "Describe your ideal workspace in one sentence:",
+      "required": true,
+      "placeholder": "e.g., Quiet corner with natural light and a standing desk"
+    },
+    {
+      "id": "problem_solving",
+      "type": "multiple-choice",
+      "text": "When you encounter a bug or problem, your first step is usually:",
+      "required": true,
+      "options": [
+        {"value": "google", "label": "Search for solutions online"},
+        {"value": "debug", "label": "Add debug logs and trace through code"},
+        {"value": "ask", "label": "Ask a colleague or community"},
+        {"value": "restart", "label": "Try restarting/turning it off and on"},
+        {"value": "ignore", "label": "Work around it temporarily"}
+      ]
+    },
+    {
+      "id": "communication_tools",
+      "type": "multi-select",
+      "text": "Which communication methods do you prefer? (select all that apply)",
+      "required": true,
+      "options": [
+        {"value": "email", "label": "Email"},
+        {"value": "slack", "label": "Slack/Teams"},
+        {"value": "async", "label": "Async text (Discord, etc.)"},
+        {"value": "video", "label": "Video calls"},
+        {"value": "phone", "label": "Phone calls"},
+        {"value": "in_person", "label": "In-person"}
+      ]
+    },
+    {
+      "id": "code_review",
+      "type": "multiple-choice",
+      "text": "When reviewing someone else's code, you focus on:",
+      "required": true,
+      "options": [
+        {"value": "functionality", "label": "Functionality and correctness"},
+        {"value": "style", "label": "Code style and readability"},
+        {"value": "performance", "label": "Performance and optimization"},
+        {"value": "security", "label": "Security and edge cases"},
+        {"value": "all", "label": "All of the above equally"}
+      ]
+    },
+    {
+      "id": "project_approach",
+      "type": "text",
+      "text": "What's one thing you always do at the start of a new project?",
+      "required": true,
+      "placeholder": "e.g., Set up version control, create a README, sketch the architecture..."
+    },
+    {
+      "id": "workflow_preferences",
+      "type": "multi-select",
+      "text": "What helps you stay focused while working? (select all that apply)",
+      "required": true,
+      "options": [
+        {"value": "music", "label": "Background music"},
+        {"value": "silence", "label": "Complete silence"},
+        {"value": "breaks", "label": "Regular breaks"},
+        {"value": "lists", "label": "To-do lists"},
+        {"value": "timer", "label": "Pomodoro timer"},
+        {"value": "caffeine", "label": "Coffee/tea"}
+      ]
+    },
+    {
+      "id": "tech_philosophy",
+      "type": "multiple-choice",
+      "text": "Your philosophy on adopting new technologies:",
+      "required": true,
+      "options": [
+        {"value": "early", "label": "Try new things early and often"},
+        {"value": "stable", "label": "Wait until they're proven stable"},
+        {"value": "case_by_case", "label": "Evaluate case-by-case"},
+        {"value": "avoid", "label": "Stick with what you know works"},
+        {"value": "experiment", "label": "Experiment in side projects only"}
+      ]
+    }
+  ]
+}
+

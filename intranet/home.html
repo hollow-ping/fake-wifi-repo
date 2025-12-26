@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local Intranet</title>
+    <style>
+        /* Retro pixel intranet theme - Green terminal/8-bit aesthetic */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Courier New', monospace;
+            background: #0d2818;
+            color: #39ff14;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #39ff14;
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+        }
+        h1 {
+            color: #39ff14;
+            text-shadow: 0 0 10px #39ff14;
+            margin: 0;
+        }
+        .welcome {
+            margin: 1rem 0;
+            font-size: 1.1rem;
+        }
+        .logout-btn {
+            padding: 0.5rem 1rem;
+            background: rgba(57, 255, 20, 0.1);
+            border: 2px solid #39ff14;
+            color: #39ff14;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .logout-btn:hover {
+            background: rgba(57, 255, 20, 0.3);
+            box-shadow: 0 0 10px #39ff14;
+        }
+        .message-board {
+            margin: 2rem 0;
+        }
+        .post-form {
+            background: rgba(57, 255, 20, 0.05);
+            border: 2px solid #39ff14;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .post-form textarea {
+            width: 100%;
+            min-height: 100px;
+            background: #0d2818;
+            border: 1px solid #39ff14;
+            color: #39ff14;
+            font-family: 'Courier New', monospace;
+            padding: 0.5rem;
+            box-sizing: border-box;
+            resize: vertical;
+        }
+        .post-form button {
+            margin-top: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(57, 255, 20, 0.1);
+            border: 2px solid #39ff14;
+            color: #39ff14;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+        }
+        .post-form button:hover {
+            background: rgba(57, 255, 20, 0.3);
+        }
+        .posts {
+            margin-top: 2rem;
+        }
+        .post {
+            background: rgba(57, 255, 20, 0.05);
+            border: 1px solid #39ff14;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .post-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        .post-author {
+            color: #39ff14;
+            font-weight: bold;
+        }
+        .post-content {
+            margin: 0.5rem 0;
+            line-height: 1.6;
+        }
+        .post-actions {
+            margin-top: 0.5rem;
+        }
+        .reply-btn {
+            background: none;
+            border: 1px solid #39ff14;
+            color: #39ff14;
+            padding: 0.25rem 0.5rem;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+        }
+        .reply-btn:hover {
+            background: rgba(57, 255, 20, 0.2);
+        }
+        .replies {
+            margin-top: 1rem;
+            margin-left: 2rem;
+            border-left: 2px solid #39ff14;
+            padding-left: 1rem;
+        }
+        .reply {
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            background: rgba(57, 255, 20, 0.03);
+        }
+        .reply-form {
+            margin-top: 0.5rem;
+        }
+        .reply-form textarea {
+            width: 100%;
+            min-height: 60px;
+            background: #0d2818;
+            border: 1px solid #39ff14;
+            color: #39ff14;
+            font-family: 'Courier New', monospace;
+            padding: 0.5rem;
+            box-sizing: border-box;
+            font-size: 0.9rem;
+        }
+        .reply-form button {
+            margin-top: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            background: rgba(57, 255, 20, 0.1);
+            border: 1px solid #39ff14;
+            color: #39ff14;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            opacity: 0.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>LOCAL INTRANET</h1>
+            <a href="/index.html" class="logout-btn">Logout</a>
+        </div>
+        <div class="welcome" id="welcome">Welcome, User</div>
+        
+        <div class="message-board">
+            <div class="post-form">
+                <h2 style="margin-top: 0;">New Post</h2>
+                <textarea id="postText" placeholder="What's on your mind?"></textarea>
+                <button onclick="createPost()">Post</button>
+            </div>
+            
+            <div class="posts" id="posts">
+                <div class="empty-state">No posts yet. Be the first to post!</div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="../js/main.js"></script>
+    <script>
+        // Load posts from localStorage
+        function loadPosts() {
+            const posts = JSON.parse(localStorage.getItem('intranetPosts') || '[]');
+            const postsContainer = document.getElementById('posts');
+            
+            if (posts.length === 0) {
+                postsContainer.innerHTML = '<div class="empty-state">No posts yet. Be the first to post!</div>';
+                return;
+            }
+            
+            postsContainer.innerHTML = '';
+            posts.forEach((post, index) => {
+                const postDiv = document.createElement('div');
+                postDiv.className = 'post';
+                postDiv.innerHTML = `
+                    <div class="post-header">
+                        <span class="post-author">${post.author}</span>
+                        <span>${new Date(post.timestamp).toLocaleString()}</span>
+                    </div>
+                    <div class="post-content">${post.content}</div>
+                    <div class="post-actions">
+                        <button class="reply-btn" onclick="toggleReply(${index})">Reply</button>
+                    </div>
+                    <div class="reply-form" id="replyForm-${index}" style="display: none;">
+                        <textarea id="replyText-${index}" placeholder="Write a reply..."></textarea>
+                        <button onclick="addReply(${index})">Reply</button>
+                    </div>
+                    ${post.replies && post.replies.length > 0 ? `
+                        <div class="replies">
+                            ${post.replies.map(reply => `
+                                <div class="reply">
+                                    <div class="post-header">
+                                        <span class="post-author">${reply.author}</span>
+                                        <span>${new Date(reply.timestamp).toLocaleString()}</span>
+                                    </div>
+                                    <div class="post-content">${reply.content}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                `;
+                postsContainer.appendChild(postDiv);
+            });
+        }
+        
+        // Create a new post
+        function createPost() {
+            const textarea = document.getElementById('postText');
+            const content = textarea.value.trim();
+            
+            if (!content) {
+                return;
+            }
+            
+            const posts = JSON.parse(localStorage.getItem('intranetPosts') || '[]');
+            const newPost = {
+                author: getBurnerName(),
+                content: content,
+                timestamp: Date.now(),
+                replies: []
+            };
+            
+            posts.unshift(newPost);
+            localStorage.setItem('intranetPosts', JSON.stringify(posts));
+            
+            textarea.value = '';
+            loadPosts();
+        }
+        
+        // Toggle reply form
+        function toggleReply(postIndex) {
+            const replyForm = document.getElementById(`replyForm-${postIndex}`);
+            replyForm.style.display = replyForm.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        // Add a reply
+        function addReply(postIndex) {
+            const textarea = document.getElementById(`replyText-${postIndex}`);
+            const content = textarea.value.trim();
+            
+            if (!content) {
+                return;
+            }
+            
+            const posts = JSON.parse(localStorage.getItem('intranetPosts') || '[]');
+            if (!posts[postIndex].replies) {
+                posts[postIndex].replies = [];
+            }
+            
+            posts[postIndex].replies.push({
+                author: getBurnerName(),
+                content: content,
+                timestamp: Date.now()
+            });
+            
+            localStorage.setItem('intranetPosts', JSON.stringify(posts));
+            
+            textarea.value = '';
+            loadPosts();
+        }
+        
+        // Initialize
+        document.getElementById('welcome').textContent = `Welcome, ${getBurnerName()}`;
+        loadPosts();
+        
+        // Allow Enter key to submit post
+        document.getElementById('postText').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                createPost();
+            }
+        });
+    </script>
+</body>
+</html>

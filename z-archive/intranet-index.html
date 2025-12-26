@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local Intranet</title>
+    <style>
+        /* Retro pixel intranet theme - Green terminal/8-bit aesthetic */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Courier New', monospace;
+            background: #0d2818;
+            color: #39ff14;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #39ff14;
+            text-shadow: 0 0 10px #39ff14;
+            border-bottom: 2px solid #39ff14;
+            padding-bottom: 1rem;
+        }
+        .welcome {
+            margin: 1.5rem 0;
+            font-size: 1.1rem;
+        }
+        nav {
+            margin: 2rem 0;
+        }
+        nav a {
+            display: block;
+            color: #39ff14;
+            text-decoration: none;
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            border: 2px solid #39ff14;
+            background: rgba(57, 255, 20, 0.1);
+            transition: all 0.3s;
+        }
+        nav a:hover {
+            background: rgba(57, 255, 20, 0.3);
+            box-shadow: 0 0 10px #39ff14;
+        }
+        .footer {
+            margin-top: 3rem;
+            padding-top: 1rem;
+            border-top: 1px solid #39ff14;
+            font-size: 0.9rem;
+            color: #39ff14;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <!--
+      /intranet/index.html - Local Network Intranet
+      
+      This is your retro paradise.
+      
+      Features:
+      - Pixel UI (NES.css or 98.css)
+      - Username displayed (burnerName)
+      - Links to:
+        - /intranet/polls.html
+        - /intranet/forms.html
+        - /intranet/forum.html
+      
+      Everything is static, but you can use JS to:
+      - Save poll submissions in localStorage
+      - Save forum posts per device
+      - Show persistent "messages" and replies
+      
+      Users feel like they're in a weird little internal social network.
+    -->
+    <div class="container">
+        <h1>LOCAL INTRANET</h1>
+        <div class="welcome" id="welcome">Welcome, User</div>
+        <nav>
+            <a href="polls.html">→ POLLS</a>
+            <a href="forms.html">→ FORMS</a>
+            <a href="forum.html">→ FORUM</a>
+        </nav>
+        <div class="footer">
+            BURNERNET LOCAL NETWORK v1.0
+        </div>
+    </div>
+    <script src="../js/main.js"></script>
+    <script>
+        document.getElementById('welcome').textContent = `Welcome, ${getBurnerName()}`;
+    </script>
+</body>
+</html>
+

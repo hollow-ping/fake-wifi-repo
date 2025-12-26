@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Verification</title>
+    <style>
+        /* Security vendor theme - Green/blue security aesthetic */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #0f4c75 0%, #3282b8 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+        h1 {
+            margin-bottom: 0.5rem;
+        }
+        .progress {
+            margin-bottom: 1rem;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
+        }
+        .question {
+            margin-bottom: 1.5rem;
+            font-size: 1.1rem;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+            margin: 2rem auto;
+            max-width: 450px;
+            width: 100%;
+        }
+        .grid-item {
+            aspect-ratio: 1;
+            background: white;
+            border: 3px solid transparent;
+            border-radius: 4px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        .grid-item:hover:not(.selected) {
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: scale(1.05);
+        }
+        .grid-item.selected {
+            border: 6px solid #000000;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+            transform: scale(0.95);
+        }
+        .grid-item.selected:hover {
+            transform: scale(0.95);
+        }
+        .grid-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .grid-item.sg-tile {
+            background-size: 300%;
+            background-repeat: no-repeat;
+            background-color: white;
+        }
+        button {
+            padding: 0.75rem 2rem;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 1rem;
+            transition: background 0.3s ease;
+        }
+        button:hover:not(:disabled) {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .error-message {
+            color: #ff9800;
+            margin-top: 1rem;
+            min-height: 1.5rem;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Security Verification</h1>
+        <div class="progress" id="progress">Captcha 1 of 2</div>
+        <div class="question" id="question">Loading...</div>
+        <div class="grid-container" id="gridContainer"></div>
+        <button id="submitBtn" onclick="submitCaptcha()" disabled>Verify</button>
+        <div class="error-message" id="errorMessage"></div>
+    </div>
+    <script>
+        // Captcha definitions
+        const captchas = [
+            {
+                type: 'sg', // or 'split' - will be randomized
+                name: 'hope',
+                question: 'Select all images that contain hope.',
+                correctAnswers: [0, 2, 5, 7] // Indices 0-8
+            },
+            {
+                type: 'split', // or 'sg' - will be randomized
+                name: 'burner',
+                question: 'Select all images that contain the essence of Burner.',
+                correctAnswers: [1, 3, 6, 8]
+            }
+        ];
+
+        // State
+        let currentCaptchaIndex = 0;
+        let selectedIndices = new Set();
+        let attempts = [0, 0]; // Track attempts per captcha
+        let captchaOrder = []; // Will store randomized order
+
+        // Randomize which type each captcha uses
+        function initializeCaptchas() {
+            const types = ['sg', 'split'];
+            const shuffled = [...types].sort(() => Math.random() - 0.5);
+            
+            captchas[0].type = shuffled[0];
+            captchas[1].type = shuffled[1];
+            
+            // Randomize order of captchas
+            captchaOrder = [0, 1].sort(() => Math.random() - 0.5);
+        }
+
+        // Get background position for sg type tiles
+        function getBackgroundPosition(index) {
+            const row = Math.floor(index / 3);
+            const col = index % 3;
+            const x = -col * 33.333;
+            const y = -row * 33.333;
+            return `${x}% ${y}%`;
+        }
+
+        // Load images for current captcha
+        function loadCaptcha() {
+            const captcha = captchas[captchaOrder[currentCaptchaIndex]];
+            const gridContainer = document.getElementById('gridContainer');
+            const questionEl = document.getElementById('question');
+            const progressEl = document.getElementById('progress');
+            
+            questionEl.textContent = captcha.question;
+            progressEl.textContent = `Captcha ${currentCaptchaIndex + 1} of 2`;
+            
+            gridContainer.innerHTML = '';
+            selectedIndices.clear();
+            document.getElementById('submitBtn').disabled = true;
+            document.getElementById('errorMessage').textContent = '';
+            
+            const basePath = `captcha-images/${captcha.type}/${captcha.name}/`;
+            
+            for (let i = 0; i < 9; i++) {
+                const item = document.createElement('div');
+                item.className = 'grid-item';
+                item.dataset.index = i;
+                
+                if (captcha.type === 'sg') {
+                    // Single image split into 9
+                    item.classList.add('sg-tile');
+                    const img = new Image();
+                    img.src = `${basePath}image-1.jpg`;
+                    img.onload = function() {
+                        item.style.backgroundImage = `url(${img.src})`;
+                        item.style.backgroundPosition = getBackgroundPosition(i);
+                    };
+                    img.onerror = function() {
+                        // Fallback to white background
+                        item.style.backgroundColor = 'white';
+                    };
+                } else {
+                    // 9 different images
+                    const img = document.createElement('img');
+                    img.src = `${basePath}image-${i + 1}.jpg`;
+                    img.alt = `Image ${i + 1}`;
+                    img.onerror = function() {
+                        // Fallback to white background
+                        this.style.display = 'none';
+                        item.style.backgroundColor = 'white';
+                    };
+                    item.appendChild(img);
+                }
+                
+                // Click handler
+                item.addEventListener('click', function() {
+                    toggleSelection(parseInt(this.dataset.index));
+                });
+                
+                gridContainer.appendChild(item);
+            }
+        }
+
+        // Toggle selection
+        function toggleSelection(index) {
+            if (selectedIndices.has(index)) {
+                selectedIndices.delete(index);
+            } else {
+                selectedIndices.add(index);
+            }
+            
+            const item = document.querySelector(`[data-index="${index}"]`);
+            if (item) {
+                item.classList.toggle('selected', selectedIndices.has(index));
+            }
+            
+            document.getElementById('submitBtn').disabled = selectedIndices.size === 0;
+        }
+
+        // Validate captcha
+        function validateCaptcha() {
+            const captcha = captchas[captchaOrder[currentCaptchaIndex]];
+            const selected = Array.from(selectedIndices).sort((a, b) => a - b);
+            const correct = [...captcha.correctAnswers].sort((a, b) => a - b);
+            
+            // Check if answers match
+            const isCorrect = selected.length === correct.length && 
+                             selected.every((val, idx) => val === correct[idx]);
+            
+            attempts[captchaOrder[currentCaptchaIndex]]++;
+            const attemptCount = attempts[captchaOrder[currentCaptchaIndex]];
+            
+            // Override logic: always pass on the second attempt
+            if (!isCorrect) {
+                const shouldOverride = attemptCount >= 2;
+                if (shouldOverride) {
+                    return true; // Pass anyway
+                }
+                return false; // Fail
+            }
+            
+            return true; // Correct answer
+        }
+
+        // Submit captcha
+        function submitCaptcha() {
+            const isValid = validateCaptcha();
+            
+            if (!isValid) {
+                document.getElementById('errorMessage').textContent = 
+                    'Verification failed. Please try again.';
+                // Reset selection
+                selectedIndices.forEach(idx => {
+                    const item = document.querySelector(`[data-index="${idx}"]`);
+                    if (item) item.classList.remove('selected');
+                });
+                selectedIndices.clear();
+                document.getElementById('submitBtn').disabled = true;
+                return;
+            }
+            
+            // Move to next captcha or complete
+            currentCaptchaIndex++;
+            if (currentCaptchaIndex < 2) {
+                loadCaptcha();
+            } else {
+                // Both captchas complete
+                window.location.href = 'account-created.html';
+            }
+        }
+
+        // Initialize
+        initializeCaptchas();
+        loadCaptcha();
+    </script>
+</body>
+</html>

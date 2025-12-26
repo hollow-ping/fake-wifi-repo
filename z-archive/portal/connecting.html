@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connecting...</title>
+    <style>
+        /* Loading screen theme - Blue tech aesthetic */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+            max-width: 600px;
+            width: 90%;
+        }
+        h1 {
+            margin-bottom: 2rem;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 2rem 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #4CAF50;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .status-log {
+            margin: 1rem 0;
+            font-size: 1.1rem;
+            min-height: 1.5rem;
+        }
+        .error {
+            color: #f44336;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin: 2rem 0;
+        }
+        button {
+            padding: 1rem 2rem;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            margin-top: 1rem;
+            display: none;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button.show {
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <!--
+      connecting.html - Loading Bar + Funny Messages → Failure
+      
+      UI:
+      - Title: "Connecting to External Internet…"
+      - Retro loading bar
+      - Underneath it, rotating funny logs:
+        - "Negotiating with cloud deity…"
+        - "Normalizing glitter distribution…"
+        - "Measuring dust density…"
+        - "Validating vibes…"
+      
+      Logic:
+      - Slowly fill progress bar
+      - At ~80–95%:
+        → Replace logs with a big red error: "External connection failed."
+        → Set localStorage.hasIntranetAccess = "true"
+        → Show button: [Enter Local Intranet] → /intranet/index.html
+      
+      This is the "unlock moment."
+    -->
+    <div class="container">
+        <h1>Connecting to External Internet…</h1>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress"></div>
+        </div>
+        <div class="status-log" id="status">Negotiating with cloud deity…</div>
+        <div class="error" id="error" style="display: none;">External connection failed.</div>
+        <button id="intranetBtn" onclick="window.location.href='/intranet/index.html'">Enter Local Intranet</button>
+    </div>
+    <script src="../js/main.js"></script>
+    <script>
+        const messages = [
+            "Negotiating with cloud deity…",
+            "Normalizing glitter distribution…",
+            "Measuring dust density…",
+            "Validating vibes…",
+            "Calibrating cosmic alignment…"
+        ];
+        let progress = 0;
+        let messageIndex = 0;
+        const progressBar = document.getElementById('progress');
+        const statusLog = document.getElementById('status');
+        const errorMsg = document.getElementById('error');
+        const intranetBtn = document.getElementById('intranetBtn');
+        
+        const interval = setInterval(() => {
+            progress += Math.random() * 15 + 5;
+            if (progress > 100) progress = 100;
+            progressBar.style.width = progress + '%';
+            
+            if (messageIndex < messages.length - 1) {
+                messageIndex++;
+                statusLog.textContent = messages[messageIndex];
+            }
+            
+            if (progress >= 85) {
+                clearInterval(interval);
+                statusLog.style.display = 'none';
+                errorMsg.style.display = 'block';
+                grantIntranetAccess();
+                setTimeout(() => {
+                    intranetBtn.classList.add('show');
+                }, 1000);
+            }
+        }, 500);
+    </script>
+</body>
+</html>
+

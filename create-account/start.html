@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Account: username</title>
+    <style>
+        /* Corporate auth portal theme - Clean blue/white */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #e0f6da;
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 90%;
+        }
+        h1 {
+            color: #189385;
+            margin-bottom: 1.5rem;
+        }
+        label {
+            display: block;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        .input-wrapper {
+            position: relative;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .status-icon {
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(calc(-50% - 0.15rem));
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #189385;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .check-icon {
+            color: #28a745;
+            font-size: 20px;
+            line-height: 1;
+        }
+        .x-icon {
+            color: #dc3545;
+            font-size: 20px;
+            line-height: 1;
+        }
+        .status-message {
+            font-size: 0.875rem;
+            margin-top: -0.5rem;
+            margin-bottom: 0.5rem;
+            min-height: 1.25rem;
+        }
+        .status-taken {
+            color: #dc3545;
+        }
+        .status-available {
+            color: #28a745;
+        }
+        .suggestion {
+            color: #189385;
+            cursor: pointer;
+            text-decoration: underline;
+            font-weight: 500;
+        }
+        .suggestion:hover {
+            color: #157a6d;
+        }
+        .error-message {
+            color: #dc3545;
+            font-size: 0.875rem;
+            margin-top: -0.5rem;
+            margin-bottom: 0.5rem;
+            min-height: 1.25rem;
+        }
+        #formError {
+            margin-top: 0.5rem;
+            margin-bottom: 0;
+            text-align: left;
+        }
+        input.error,
+        select.error,
+        .question-field.error {
+            border-color: #dc3545;
+        }
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            background: #189385;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 1rem;
+        }
+        button:hover {
+            background: #157a6d;
+        }
+        
+        /* Question styling */
+        .question-container {
+            margin: 1.5rem 0;
+        }
+        .question-label {
+            display: block;
+            margin-bottom: 0.75rem;
+            font-weight: 500;
+            color: #333;
+        }
+        .question-field {
+            margin: 0.5rem 0;
+        }
+        
+        /* Radio button styling */
+        .radio-group,
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin: 0.5rem 0;
+        }
+        .radio-option,
+        .checkbox-option {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #f9f9f9;
+        }
+        .radio-option:hover,
+        .checkbox-option:hover {
+            background: #f0f0f0;
+            border-color: #189385;
+        }
+        .radio-option input[type="radio"],
+        .checkbox-option input[type="checkbox"] {
+            margin-right: 0.75rem;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: #189385;
+        }
+        .radio-option input[type="radio"]:checked + label,
+        .checkbox-option input[type="checkbox"]:checked + label {
+            color: #189385;
+            font-weight: 500;
+        }
+        .radio-option:has(input[type="radio"]:checked),
+        .checkbox-option:has(input[type="checkbox"]:checked) {
+            border-color: #189385;
+            background: #e8f5f3;
+        }
+        .radio-option label,
+        .checkbox-option label {
+            flex: 1;
+            margin: 0;
+            cursor: pointer;
+            font-weight: normal;
+        }
+        
+        /* Text input styling */
+        .text-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+        .text-input:focus {
+            outline: none;
+            border-color: #189385;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Create Account</h1>
+        <form id="createForm">
+            <label>Burner Name:</label>
+            <div class="input-wrapper">
+                <input type="text" id="burnerName" required>
+                <div id="statusIcon" class="status-icon" style="display: none;"></div>
+            </div>
+            <div id="statusMessage" class="status-message"></div>
+            
+            <div id="questionsContainer"></div>
+            
+            <button type="submit" id="nextBtn">Next</button>
+            <div id="formError" class="error-message"></div>
+        </form>
+    </div>
+    
+    <script src="../js/main.js"></script>
+    <script>
+        const burnerNameInput = document.getElementById('burnerName');
+        const statusIcon = document.getElementById('statusIcon');
+        const statusMessage = document.getElementById('statusMessage');
+        const questionsContainer = document.getElementById('questionsContainer');
+        let checkTimeout;
+        let selectedQuestions = [];
+        let allQuestions = [];
+
+        // Count numbers in a string
+        function countNumbers(str) {
+            return (str.match(/\d/g) || []).length;
+        }
+
+        // Generate suggested name with random numbers
+        function generateSuggestion(baseName) {
+            const numCount = 5 + Math.floor(Math.random() * 3); // 5-7 numbers
+            let numbers = '';
+            for (let i = 0; i < numCount; i++) {
+                numbers += Math.floor(Math.random() * 10);
+            }
+            return baseName + numbers;
+        }
+
+        // Check username availability
+        function checkUsername(name) {
+            if (!name || name.trim() === '') {
+                statusIcon.style.display = 'none';
+                statusMessage.textContent = '';
+                return;
+            }
+
+            // Show loading spinner
+            statusIcon.style.display = 'block';
+            statusIcon.innerHTML = '<div class="spinner"></div>';
+            statusMessage.textContent = '';
+
+            // Simulate API check delay
+            setTimeout(() => {
+                const numCount = countNumbers(name);
+                const isAvailable = numCount >= 4;
+
+                if (isAvailable) {
+                    // Available
+                    statusIcon.innerHTML = '<span class="check-icon">✓</span>';
+                    statusMessage.className = 'status-message status-available';
+                    statusMessage.textContent = 'Burner name is available';
+                } else {
+                    // Taken
+                    statusIcon.innerHTML = '<span class="x-icon">✗</span>';
+                    statusMessage.className = 'status-message status-taken';
+                    const suggestion = generateSuggestion(name);
+                    statusMessage.innerHTML = `Sorry that Burner name is already taken<br>Suggestion: <span class="suggestion" data-suggestion="${suggestion}">${suggestion}</span>`;
+                }
+            }, 500 + Math.random() * 500); // Random delay between 500-1000ms
+        }
+
+        // Debounced input handler
+        burnerNameInput.addEventListener('input', function(e) {
+            clearTimeout(checkTimeout);
+            const name = e.target.value.trim();
+            
+            // Clear validation error if present
+            document.getElementById('formError').textContent = '';
+            burnerNameInput.classList.remove('error');
+            
+            if (name === '') {
+                statusIcon.style.display = 'none';
+                statusMessage.textContent = '';
+                return;
+            }
+
+            checkTimeout = setTimeout(() => {
+                checkUsername(name);
+            }, 300); // Wait 300ms after user stops typing
+        });
+
+        // Handle suggestion clicks using event delegation
+        statusMessage.addEventListener('click', function(e) {
+            if (e.target.classList.contains('suggestion')) {
+                const suggestion = e.target.getAttribute('data-suggestion');
+                burnerNameInput.value = suggestion;
+                burnerNameInput.dispatchEvent(new Event('input'));
+            }
+        });
+
+        // Load questions and randomly select 2-3
+        async function loadQuestions() {
+            try {
+                const response = await fetch('../js/account-questions.json');
+                const data = await response.json();
+                allQuestions = data.questions;
+                
+                // Randomly select 2-3 questions
+                const numQuestions = Math.floor(Math.random() * 2) + 2; // 2 or 3
+                const shuffled = [...allQuestions].sort(() => Math.random() - 0.5);
+                selectedQuestions = shuffled.slice(0, Math.min(numQuestions, allQuestions.length));
+                
+                renderQuestions();
+            } catch (error) {
+                console.error('Error loading questions:', error);
+                questionsContainer.innerHTML = '<p style="color: #dc3545;">Error loading questions. Please refresh the page.</p>';
+            }
+        }
+
+        // Render selected questions
+        function renderQuestions() {
+            questionsContainer.innerHTML = '';
+            
+            selectedQuestions.forEach((question, index) => {
+                const questionDiv = document.createElement('div');
+                questionDiv.className = 'question-container';
+                questionDiv.id = `question-${question.id}`;
+                
+                const label = document.createElement('label');
+                label.className = 'question-label';
+                label.textContent = question.text;
+                if (question.required) {
+                    label.innerHTML += ' <span style="color: #dc3545;">*</span>';
+                }
+                questionDiv.appendChild(label);
+                
+                const fieldContainer = document.createElement('div');
+                fieldContainer.className = 'question-field';
+                
+                if (question.type === 'multiple-choice') {
+                    const radioGroup = document.createElement('div');
+                    radioGroup.className = 'radio-group';
+                    
+                    question.options.forEach(option => {
+                        const radioOption = document.createElement('div');
+                        radioOption.className = 'radio-option';
+                        
+                        const radio = document.createElement('input');
+                        radio.type = 'radio';
+                        radio.name = question.id;
+                        radio.id = `${question.id}-${option.value}`;
+                        radio.value = option.value;
+                        if (question.required) radio.required = true;
+                        
+                        const optionLabel = document.createElement('label');
+                        optionLabel.htmlFor = `${question.id}-${option.value}`;
+                        optionLabel.textContent = option.label;
+                        
+                        radioOption.appendChild(radio);
+                        radioOption.appendChild(optionLabel);
+                        radioGroup.appendChild(radioOption);
+                    });
+                    
+                    fieldContainer.appendChild(radioGroup);
+                } else if (question.type === 'multi-select') {
+                    const checkboxGroup = document.createElement('div');
+                    checkboxGroup.className = 'checkbox-group';
+                    
+                    question.options.forEach(option => {
+                        const checkboxOption = document.createElement('div');
+                        checkboxOption.className = 'checkbox-option';
+                        
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.name = question.id;
+                        checkbox.id = `${question.id}-${option.value}`;
+                        checkbox.value = option.value;
+                        
+                        const optionLabel = document.createElement('label');
+                        optionLabel.htmlFor = `${question.id}-${option.value}`;
+                        optionLabel.textContent = option.label;
+                        
+                        checkboxOption.appendChild(checkbox);
+                        checkboxOption.appendChild(optionLabel);
+                        checkboxGroup.appendChild(checkboxOption);
+                    });
+                    
+                    fieldContainer.appendChild(checkboxGroup);
+                } else if (question.type === 'text') {
+                    const textInput = document.createElement('input');
+                    textInput.type = 'text';
+                    textInput.className = 'text-input';
+                    textInput.id = question.id;
+                    textInput.name = question.id;
+                    if (question.placeholder) textInput.placeholder = question.placeholder;
+                    if (question.required) textInput.required = true;
+                    
+                    fieldContainer.appendChild(textInput);
+                }
+                
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error-message';
+                errorDiv.id = `${question.id}Error`;
+                fieldContainer.appendChild(errorDiv);
+                
+                questionDiv.appendChild(fieldContainer);
+                questionsContainer.appendChild(questionDiv);
+            });
+        }
+
+        // Clear error for a question
+        function clearQuestionError(questionId) {
+            const questionDiv = document.getElementById(`question-${questionId}`);
+            if (questionDiv) {
+                const field = questionDiv.querySelector('.question-field');
+                if (field) field.classList.remove('error');
+                const errorDiv = document.getElementById(`${questionId}Error`);
+                if (errorDiv) errorDiv.textContent = '';
+            }
+        }
+
+        // Show error for a question
+        function showQuestionError(questionId, message) {
+            const questionDiv = document.getElementById(`question-${questionId}`);
+            if (questionDiv) {
+                const field = questionDiv.querySelector('.question-field');
+                if (field) field.classList.add('error');
+                const errorDiv = document.getElementById(`${questionId}Error`);
+                if (errorDiv) errorDiv.textContent = message;
+            }
+        }
+
+        // Validate all questions
+        function validateQuestions() {
+            let hasErrors = false;
+            
+            selectedQuestions.forEach(question => {
+                clearQuestionError(question.id);
+                
+                if (question.type === 'multiple-choice') {
+                    const selected = document.querySelector(`input[name="${question.id}"]:checked`);
+                    if (question.required && !selected) {
+                        showQuestionError(question.id, `Please select an option.`);
+                        hasErrors = true;
+                    }
+                } else if (question.type === 'multi-select') {
+                    const selected = document.querySelectorAll(`input[name="${question.id}"]:checked`);
+                    if (question.required && selected.length === 0) {
+                        showQuestionError(question.id, `Please select at least one option.`);
+                        hasErrors = true;
+                    }
+                } else if (question.type === 'text') {
+                    const input = document.getElementById(question.id);
+                    if (question.required && (!input || !input.value.trim())) {
+                        showQuestionError(question.id, `Please enter an answer.`);
+                        hasErrors = true;
+                    }
+                }
+            });
+            
+            return !hasErrors;
+        }
+
+        // Form submission
+        document.getElementById('createForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            let hasErrors = false;
+
+            // Clear all previous errors
+            document.querySelectorAll('.error-message').forEach(el => el.textContent = '');
+            document.querySelectorAll('input, select').forEach(el => el.classList.remove('error'));
+            document.querySelectorAll('.question-field').forEach(el => el.classList.remove('error'));
+            document.getElementById('formError').textContent = '';
+
+            const burnerName = burnerNameInput.value.trim();
+            
+            // Validate burner name
+            if (!burnerName) {
+                document.getElementById('formError').textContent = 'Please review your answers and try again';
+                burnerNameInput.classList.add('error');
+                hasErrors = true;
+            } else {
+                // Check if name is available (has 4+ numbers)
+                const numCount = countNumbers(burnerName);
+                if (numCount < 4) {
+                    document.getElementById('formError').textContent = 'Please review your answers and try again';
+                    burnerNameInput.classList.add('error');
+                    hasErrors = true;
+                }
+            }
+
+            // Validate questions
+            if (!validateQuestions()) {
+                hasErrors = true;
+            }
+
+            if (hasErrors) {
+                return;
+            }
+            
+            // Save burner name temporarily (will be committed after captchas complete)
+            // Note: This overwrites any existing tempBurnerName if user goes back and starts over
+            setTempBurnerName(burnerName);
+            window.location.href = 'set-password.html';
+        });
+
+        // Load questions on page load
+        loadQuestions();
+    </script>
+</body>
+</html>

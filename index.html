@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BURNERNET AUTH PORTAL</title>
+    <style>
+        /* Corporate auth portal theme - Clean blue/white */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #e0f6da;
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+        h1 {
+            color: #189385;
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+        }
+        button {
+            padding: 1rem 2rem;
+            font-size: 1.2rem;
+            background: #189385;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #157a6d;
+        }
+    </style>
+</head>
+<body>
+    <!--
+      index.html - Splash Screen
+      
+      Purpose:
+      The captive portal redirects here automatically.
+      
+      Logic:
+      - If localStorage.hasIntranetAccess === "true" → instantly redirect to intranet/home.html
+      - Otherwise show:
+        - Retro header: "BURNERNET AUTH PORTAL"
+        - Button: [Create Account] → create-account/start.html
+    -->
+    <div class="container">
+        <h1>BURNERNET AUTH PORTAL</h1>
+        <button onclick="window.location.href='create-account/start.html'">Create Account</button>
+    </div>
+    <script src="js/main.js"></script>
+    <script>
+        // Redirect to burner-net.com if on hijacked domain
+        // Allow GitHub Pages domains for testing
+        const targetDomain = 'burner-net.com';
+        const currentHost = window.location.hostname;
+        const isGitHubPages = currentHost.includes('github.io');
+        const isLocalIP = currentHost === '192.168.4.1' || currentHost.includes('192.168.4.1');
+        
+        // If not on the target domain and not on the IP or GitHub Pages, redirect
+        if (currentHost !== targetDomain && !isLocalIP && !isGitHubPages) {
+            window.location.replace('http://' + targetDomain + '/');
+            // Exit early - don't run other checks yet
+            throw new Error('Redirecting...');
+        }
+        
+        // Check device state and redirect if needed
+        // Returns "newDevice" if they should see the create account button
+        checkDeviceState();
+    </script>
+</body>
+</html>

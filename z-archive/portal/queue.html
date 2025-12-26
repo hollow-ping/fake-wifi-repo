@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Queue</title>
+    <style>
+        /* Burner ticket queue theme - Orange/red ticket site aesthetic */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+        }
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+        }
+        .queue-number {
+            font-size: 4rem;
+            font-weight: bold;
+            margin: 2rem 0;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.3);
+        }
+        .walking-man {
+            font-size: 3rem;
+            margin: 1rem 0;
+        }
+        .status {
+            font-size: 1.2rem;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <!--
+      queue.html - Fake Burner Queue
+      
+      The highlight of this experience.
+      
+      UI:
+      - Title: "BURNERNET AUTH QUEUE"
+      - Big text:
+        "You are in place #1,406 in the login queue.
+         Estimated wait: 14 minutes..."
+      - Walking-man animation (emoji or pixel sprite)
+      - Scrolling fake log lines
+      
+      Logic:
+      - On load:
+        - Random big queue number: 1000–3000
+        - After ~1s → drop to ~40
+        - After ~1.4s → drop to ~5
+        - After ~1.6s → drop to 1
+        - After ~2.5s → show "Connecting…"
+        - After ~3s → redirect to captcha2.html
+      
+      Users will laugh because it mimics the real Burner ticket queue.
+    -->
+    <div class="container">
+        <h1>BURNERNET AUTH QUEUE</h1>
+        <div class="walking-man">🚶</div>
+        <div class="queue-number" id="queueNum">#1406</div>
+        <div class="status" id="status">Estimated wait: 14 minutes...</div>
+    </div>
+    <script>
+        // Random starting number between 1000-3000
+        let queueNum = Math.floor(Math.random() * 2000) + 1000;
+        document.getElementById('queueNum').textContent = '#' + queueNum;
+        
+        setTimeout(() => { queueNum = 40; updateQueue(); }, 1000);
+        setTimeout(() => { queueNum = 5; updateQueue(); }, 1400);
+        setTimeout(() => { queueNum = 1; updateQueue(); }, 1600);
+        setTimeout(() => { 
+            document.getElementById('status').textContent = 'Connecting...';
+        }, 2500);
+        setTimeout(() => {
+            window.location.href = 'debug.html';
+        }, 3000);
+        
+        function updateQueue() {
+            document.getElementById('queueNum').textContent = '#' + queueNum;
+        }
+    </script>
+</body>
+</html>
+
