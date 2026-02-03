@@ -72,25 +72,9 @@
 </head>
 <body>
     <!--
-      connecting.html - Loading Bar + Funny Messages → Failure
-      
-      UI:
-      - Title: "Connecting to External Internet…"
-      - Retro loading bar
-      - Underneath it, rotating funny logs:
-        - "Negotiating with cloud deity…"
-        - "Normalizing glitter distribution…"
-        - "Measuring dust density…"
-        - "Validating vibes…"
-      
-      Logic:
-      - Slowly fill progress bar
-      - At ~80–95%:
-        → Replace logs with a big red error: "External connection failed."
-        → Set localStorage.hasIntranetAccess = "true"
-        → Show button: [Enter Local Intranet] → /intranet/index.html
-      
-      This is the "unlock moment."
+      go.html - Loading bar + funny messages, then redirect to queue.
+      UI: Title "Connecting to External Internet…", progress bar, rotating status logs.
+      Logic: Fill progress bar; at ~85% auto-redirect to queue.html.
     -->
     <div class="container">
         <h1>Connecting to External Internet…</h1>
@@ -100,7 +84,7 @@
         <div class="status-log" id="status">Negotiating with cloud deity…</div>
         <div class="error" id="error" style="display: none;">External connection failed.</div>
     </div>
-    <script src="../../../js/main.js"></script>
+    <script src="../js/main.js"></script>
     <script>
         const messages = [
             "Negotiating with cloud deity…",
@@ -114,7 +98,6 @@
         const progressBar = document.getElementById('progress');
         const statusLog = document.getElementById('status');
         const errorMsg = document.getElementById('error');
-        const intranetBtn = document.getElementById('intranetBtn');
         
         const interval = setInterval(() => {
             progress += Math.random() * 15 + 5;

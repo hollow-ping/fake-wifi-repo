@@ -187,13 +187,17 @@
     
     <script src="../js/main.js"></script>
     <script>
-        // Load posts from localStorage
+        // Load posts from localStorage (safe DOM construction, no innerHTML of user data)
         function loadPosts() {
             const posts = JSON.parse(localStorage.getItem('intranetPosts') || '[]');
             const postsContainer = document.getElementById('posts');
             
             if (posts.length === 0) {
-                postsContainer.innerHTML = '<div class="empty-state">No posts yet. Be the first to post!</div>';
+                postsContainer.innerHTML = '';
+                const empty = document.createElement('div');
+                empty.className = 'empty-state';
+                empty.textContent = 'No posts yet. Be the first to post!';
+                postsContainer.appendChild(empty);
                 return;
             }
             
@@ -201,33 +205,72 @@
             posts.forEach((post, index) => {
                 const postDiv = document.createElement('div');
                 postDiv.className = 'post';
-                postDiv.innerHTML = `
-                    <div class="post-header">
-                        <span class="post-author">${post.author}</span>
-                        <span>${new Date(post.timestamp).toLocaleString()}</span>
-                    </div>
-                    <div class="post-content">${post.content}</div>
-                    <div class="post-actions">
-                        <button class="reply-btn" onclick="toggleReply(${index})">Reply</button>
-                    </div>
-                    <div class="reply-form" id="replyForm-${index}" style="display: none;">
-                        <textarea id="replyText-${index}" placeholder="Write a reply..."></textarea>
-                        <button onclick="addReply(${index})">Reply</button>
-                    </div>
-                    ${post.replies && post.replies.length > 0 ? `
-                        <div class="replies">
-                            ${post.replies.map(reply => `
-                                <div class="reply">
-                                    <div class="post-header">
-                                        <span class="post-author">${reply.author}</span>
-                                        <span>${new Date(reply.timestamp).toLocaleString()}</span>
-                                    </div>
-                                    <div class="post-content">${reply.content}</div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    ` : ''}
-                `;
+
+                const header = document.createElement('div');
+                header.className = 'post-header';
+                const authorSpan = document.createElement('span');
+                authorSpan.className = 'post-author';
+                authorSpan.textContent = post.author;
+                const timeSpan = document.createElement('span');
+                timeSpan.textContent = new Date(post.timestamp).toLocaleString();
+                header.appendChild(authorSpan);
+                header.appendChild(timeSpan);
+
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'post-content';
+                contentDiv.textContent = post.content;
+
+                const actions = document.createElement('div');
+                actions.className = 'post-actions';
+                const replyBtn = document.createElement('button');
+                replyBtn.className = 'reply-btn';
+                replyBtn.textContent = 'Reply';
+                replyBtn.onclick = () => toggleReply(index);
+                actions.appendChild(replyBtn);
+
+                const replyForm = document.createElement('div');
+                replyForm.className = 'reply-form';
+                replyForm.id = `replyForm-${index}`;
+                replyForm.style.display = 'none';
+                const replyTextarea = document.createElement('textarea');
+                replyTextarea.id = `replyText-${index}`;
+                replyTextarea.placeholder = 'Write a reply...';
+                const replySubmitBtn = document.createElement('button');
+                replySubmitBtn.textContent = 'Reply';
+                replySubmitBtn.onclick = () => addReply(index);
+                replyForm.appendChild(replyTextarea);
+                replyForm.appendChild(replySubmitBtn);
+
+                postDiv.appendChild(header);
+                postDiv.appendChild(contentDiv);
+                postDiv.appendChild(actions);
+                postDiv.appendChild(replyForm);
+
+                if (post.replies && post.replies.length > 0) {
+                    const repliesDiv = document.createElement('div');
+                    repliesDiv.className = 'replies';
+                    post.replies.forEach(reply => {
+                        const replyEl = document.createElement('div');
+                        replyEl.className = 'reply';
+                        const replyHeader = document.createElement('div');
+                        replyHeader.className = 'post-header';
+                        const replyAuthor = document.createElement('span');
+                        replyAuthor.className = 'post-author';
+                        replyAuthor.textContent = reply.author;
+                        const replyTime = document.createElement('span');
+                        replyTime.textContent = new Date(reply.timestamp).toLocaleString();
+                        replyHeader.appendChild(replyAuthor);
+                        replyHeader.appendChild(replyTime);
+                        const replyContent = document.createElement('div');
+                        replyContent.className = 'post-content';
+                        replyContent.textContent = reply.content;
+                        replyEl.appendChild(replyHeader);
+                        replyEl.appendChild(replyContent);
+                        repliesDiv.appendChild(replyEl);
+                    });
+                    postDiv.appendChild(repliesDiv);
+                }
+
                 postsContainer.appendChild(postDiv);
             });
         }
@@ -288,11 +331,18 @@
             loadPosts();
         }
         
-        // Initialize
-        document.getElementById('welcome').textContent = `Welcome, ${getBurnerName()}`;
-        loadPosts();
-        
-        // Allow Enter key to submit post
+        // Initialize: verify signed cookie so spoofed burnerName is rejected
+        (async function init() {
+            const valid = await verifyBurnerCookie();
+            if (!valid) {
+                clearBurnerCookie();
+                window.location.href = '../index.html';
+                return;
+            }
+            document.getElementById('welcome').textContent = `Welcome, ${getBurnerName()}`;
+            loadPosts();
+        })();
+
         document.getElementById('postText').addEventListener('keydown', function(e) {
             if (e.key === 'Enter' && e.ctrlKey) {
                 createPost();

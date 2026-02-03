@@ -453,7 +453,7 @@
         }
 
         // Submit captcha
-        function submitCaptcha() {
+        async function submitCaptcha() {
             attempts[currentCaptchaIndex]++;
             const attemptCount = attempts[currentCaptchaIndex];
             
@@ -481,8 +481,8 @@
             if (currentCaptchaIndex < 2) {
                 loadCaptcha();
             } else {
-                // Both captchas complete
-                const burnerName = commitBurnerName();
+                // Both captchas complete - commit signed cookie
+                const burnerName = await commitBurnerName();
                 if (!burnerName) {
                     const tempName = getTempBurnerName();
                     if (tempName) {

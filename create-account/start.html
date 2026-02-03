@@ -278,11 +278,19 @@
                     statusMessage.className = 'status-message status-available';
                     statusMessage.textContent = 'Burner name is available';
                 } else {
-                    // Taken
+                    // Taken - render suggestion via DOM to avoid XSS
                     statusIcon.innerHTML = '<span class="x-icon">✗</span>';
                     statusMessage.className = 'status-message status-taken';
                     const suggestion = generateSuggestion(name);
-                    statusMessage.innerHTML = `Sorry that Burner name is already taken<br>Suggestion: <span class="suggestion" data-suggestion="${suggestion}">${suggestion}</span>`;
+                    statusMessage.textContent = '';
+                    statusMessage.appendChild(document.createTextNode('Sorry that Burner name is already taken'));
+                    statusMessage.appendChild(document.createElement('br'));
+                    statusMessage.appendChild(document.createTextNode('Suggestion: '));
+                    const suggestionSpan = document.createElement('span');
+                    suggestionSpan.className = 'suggestion';
+                    suggestionSpan.setAttribute('data-suggestion', suggestion);
+                    suggestionSpan.textContent = suggestion;
+                    statusMessage.appendChild(suggestionSpan);
                 }
             }, 500 + Math.random() * 500); // Random delay between 500-1000ms
         }

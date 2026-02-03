@@ -43,24 +43,39 @@
         button:hover {
             background: #157a6d;
         }
+        .buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .buttons a {
+            padding: 1rem 2rem;
+            font-size: 1.2rem;
+            background: transparent;
+            color: #189385;
+            border: 2px solid #189385;
+            border-radius: 4px;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .buttons a:hover {
+            background: #e0f6da;
+        }
     </style>
 </head>
 <body>
     <!--
       index.html - Splash Screen
-      
-      Purpose:
-      The captive portal redirects here automatically.
-      
-      Logic:
-      - If localStorage.hasIntranetAccess === "true" → instantly redirect to intranet/home.html
-      - Otherwise show:
-        - Retro header: "BURNERNET AUTH PORTAL"
-        - Button: [Create Account] → create-account/start.html
+      Purpose: The captive portal redirects here.
+      Logic: Show "BURNERNET AUTH PORTAL" and [Create Account] → create-account/start.html
     -->
     <div class="container">
         <h1>BURNERNET AUTH PORTAL</h1>
-        <button onclick="window.location.href='create-account/start.html'">Create Account</button>
+        <div class="buttons">
+            <button onclick="window.location.href='create-account/start.html'">Create Account</button>
+            <a href="login.html">Login</a>
+        </div>
     </div>
     <script src="js/main.js"></script>
     <script>

@@ -330,8 +330,8 @@
             }
         }
         
-        function commitTempToPerm() {
-            const committed = commitBurnerName();
+        async function commitTempToPerm() {
+            const committed = await commitBurnerName();
             if (committed) {
                 refreshInfo();
                 alert(`Committed temp name to cookie: ${committed}`);
@@ -342,7 +342,7 @@
         
         function setNewDevice() {
             localStorage.removeItem('tempBurnerName');
-            localStorage.removeItem('burnerName');
+            clearBurnerCookie();
             refreshInfo();
             refreshStorage();
             alert('Set to: New Device (all names cleared)');

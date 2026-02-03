@@ -3,49 +3,78 @@
   
   LocalStorage logic + small scripts
   
-  The login cookie is simply the burnerName - no other status tracking needed.
+  Signed "cookie" (burnerName + burnerNameSig) so editing localStorage can't spoof another user.
   
   Keys:
-  - tempBurnerName: Temporary storage during account creation (before captchas complete)
-  - burnerName: The actual "cookie" - only set after completing account creation (captchas)
+  - tempBurnerName: During account creation (before captchas complete)
+  - burnerName: Committed username (only valid with matching burnerNameSig)
+  - burnerNameSig: HMAC-SHA256(burnerName, secret) so changing burnerName breaks the sig.
   
   Flow:
-  1. User enters username → saved to tempBurnerName
+  1. User enters username → tempBurnerName
   2. User completes password → tempBurnerName persists
-  3. User completes captchas → tempBurnerName → burnerName (cookie committed)
-  4. Login checks only burnerName (not tempBurnerName)
+  3. User completes captchas → tempBurnerName → burnerName + burnerNameSig (signed)
+  4. Login: username must match stored burnerName and sig must verify; any password OK.
   
   Device States:
-  1. New Device (no burnerName) → Full flow
-  2. Has Account (has burnerName) → Can login with burnerName
+  1. New Device (no valid signed cookie) → Full flow
+  2. Has Account (valid signed cookie) → Can login
 */
+const BURNER_COOKIE_SECRET = "burnernet-v1-8f3a9c2e7d1b4f6a";
 
 // Check device state and redirect accordingly
 function checkDeviceState() {
-    // If user has burnerName (cookie), they can login
-    // But we still show the create account button for new users
     const burnerName = localStorage.getItem("burnerName");
-    
-    if (burnerName) {
-        // User has account - they can login
-        // But don't auto-redirect, let them choose
-        return "hasAccount";
-    }
-    
-    // New device - show create account button
+    if (burnerName) return "hasAccount";
     return "newDevice";
 }
 
-// Get the stored burner name (the "cookie")
-// Only returns committed burnerName, not tempBurnerName
+// Get the stored burner name. Only trust after verifyBurnerCookie() on protected pages.
 function getBurnerName() {
     return localStorage.getItem("burnerName") || "User";
 }
 
-// Set burner name (this is the "cookie" - just the username)
-// Note: This will overwrite any existing burnerName if user creates a new account
+// Set burner name only (legacy/debug). For commit use commitBurnerName() which signs.
 function setBurnerName(name) {
     localStorage.setItem("burnerName", name);
+}
+
+function setBurnerCookie(name, sig) {
+    localStorage.setItem("burnerName", name);
+    localStorage.setItem("burnerNameSig", sig);
+}
+
+function clearBurnerCookie() {
+    localStorage.removeItem("burnerName");
+    localStorage.removeItem("burnerNameSig");
+}
+
+async function signBurnerCookie(name) {
+    const key = await crypto.subtle.importKey(
+        "raw",
+        new TextEncoder().encode(BURNER_COOKIE_SECRET),
+        { name: "HMAC", hash: "SHA-256" },
+        false,
+        ["sign"]
+    );
+    const sig = await crypto.subtle.sign(
+        "HMAC",
+        key,
+        new TextEncoder().encode(name)
+    );
+    return btoa(String.fromCharCode(...new Uint8Array(sig)));
+}
+
+async function verifyBurnerCookie() {
+    const name = localStorage.getItem("burnerName");
+    const storedSig = localStorage.getItem("burnerNameSig");
+    if (!name) return false;
+    const expectedSig = await signBurnerCookie(name);
+    if (!storedSig) {
+        setBurnerCookie(name, expectedSig);
+        return true;
+    }
+    return expectedSig === storedSig;
 }
 
 // Temporary burner name during account creation (before captchas complete)
@@ -58,16 +87,14 @@ function getTempBurnerName() {
     return localStorage.getItem("tempBurnerName");
 }
 
-// Commit temp burner name to actual cookie after completing account creation
-// Note: This overwrites any existing burnerName (if user creates new account)
-function commitBurnerName() {
+// Commit temp burner name to signed cookie after completing account creation. Async.
+async function commitBurnerName() {
     const tempName = getTempBurnerName();
-    if (tempName) {
-        setBurnerName(tempName); // Commit to cookie (overwrites existing if any)
-        localStorage.removeItem("tempBurnerName"); // Clear temp
-        return tempName;
-    }
-    return null;
+    if (!tempName) return null;
+    const sig = await signBurnerCookie(tempName);
+    setBurnerCookie(tempName, sig);
+    localStorage.removeItem("tempBurnerName");
+    return tempName;
 }
 
 // Get burner name during account creation (checks temp first, then committed)

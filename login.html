@@ -91,7 +91,7 @@
             <input type="text" id="burnerName" required>
             
             <label>Password:</label>
-            <input type="password" id="password" required>
+            <input type="password" id="password" placeholder="••••••••" required>
             
             <button type="submit" id="loginBtn">Login</button>
             <div id="formError" class="error-message"></div>
@@ -102,32 +102,46 @@
         </form>
     </div>
     
-    <script src="../js/main.js"></script>
+    <script src="js/main.js"></script>
     <script>
-        document.getElementById('loginForm').addEventListener('submit', function(e) {
+        (async function onLoad() {
+            const burnerNameEl = document.getElementById('burnerName');
+            const passwordEl = document.getElementById('password');
+            const valid = await verifyBurnerCookie();
+            const storedName = localStorage.getItem('burnerName');
+            if (valid && storedName) {
+                burnerNameEl.value = storedName;
+                passwordEl.placeholder = '••••••••';
+            }
+        })();
+
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            const burnerName = document.getElementById('burnerName').value.trim();
-            const password = document.getElementById('password').value;
+            const burnerNameEl = document.getElementById('burnerName');
+            const passwordEl = document.getElementById('password');
             const formError = document.getElementById('formError');
-            
+            const burnerName = burnerNameEl.value.trim();
+            const password = passwordEl.value;
+
             formError.textContent = '';
-            document.getElementById('burnerName').classList.remove('error');
-            document.getElementById('password').classList.remove('error');
-            
+            burnerNameEl.classList.remove('error');
+            passwordEl.classList.remove('error');
+
             if (!burnerName || !password) {
                 formError.textContent = 'Please enter both burner name and password';
-                if (!burnerName) document.getElementById('burnerName').classList.add('error');
-                if (!password) document.getElementById('password').classList.add('error');
+                if (!burnerName) burnerNameEl.classList.add('error');
+                if (!password) passwordEl.classList.add('error');
                 return;
             }
-            
+
+            const valid = await verifyBurnerCookie();
             const storedName = localStorage.getItem('burnerName');
-            if (storedName && storedName === burnerName) {
+            if (valid && storedName && storedName === burnerName) {
                 window.location.href = 'login-success.html';
             } else {
-                formError.textContent = 'Invalid burner name or password';
-                document.getElementById('burnerName').classList.add('error');
-                document.getElementById('password').classList.add('error');
+                formError.textContent = 'Invalid';
+                burnerNameEl.classList.add('error');
+                passwordEl.classList.add('error');
             }
         });
     </script>
