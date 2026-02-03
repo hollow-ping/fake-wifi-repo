@@ -2,43 +2,101 @@
 
 A fake WiFi captive portal interface for testing and demonstration purposes.
 
+## GitHub Repository Information
+
+**Repository URL:** https://github.com/hollow-ping/fake-wifi-repo
+
+**GitHub Pages Settings:** https://github.com/hollow-ping/fake-wifi-repo/settings/pages
+
+**Live Site URL:** https://hollow-ping.github.io/fake-wifi-repo/
+
+## Project Overview
+
+This is a static HTML/CSS/JavaScript project that simulates a WiFi captive portal authentication flow. It includes:
+- Account creation flow
+- CAPTCHA verification system with image selection
+- Login functionality
+- Connection simulation pages
+- Intranet access pages
+
+The project has been configured to work on GitHub Pages, with domain redirect logic updated to allow `github.io` domains.
+
 ## Deploying to GitHub Pages
 
-This project can be easily deployed to GitHub Pages for testing on mobile devices.
+This project is already set up for GitHub Pages deployment. Follow these steps to deploy:
 
-### Setup Instructions
+### Initial Setup (if not already done)
 
-1. **Create a GitHub repository** (if you haven't already):
+1. **Create the initial commit** (if you haven't already):
    ```bash
-   git init
-   git add .
-   git commit -m "Initial commit"
+   git commit -m "Initial commit - ready for GitHub Pages"
+   ```
+
+2. **Push to GitHub** (if you haven't already):
+   ```bash
    git branch -M main
-   git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
+   git remote add origin https://github.com/hollow-ping/fake-wifi-repo.git
    git push -u origin main
    ```
 
-2. **Enable GitHub Pages**:
-   - Go to your repository on GitHub
-   - Click on **Settings** → **Pages**
-   - Under **Source**, select **Deploy from a branch**
-   - Choose **main** branch and **/ (root)** folder
-   - Click **Save**
+### Enable GitHub Pages
 
-3. **Access your site**:
-   - Your site will be available at: `https://YOUR_USERNAME.github.io/YOUR_REPO_NAME/`
-   - It may take a few minutes for the site to be available after the first deployment
+1. Go to the GitHub Pages settings: https://github.com/hollow-ping/fake-wifi-repo/settings/pages
+2. Under **Source**, select **Deploy from a branch**
+3. Choose **main** branch and **/ (root)** folder
+4. Click **Save**
+
+### Access Your Site
+
+- **Live URL:** https://hollow-ping.github.io/fake-wifi-repo/
+- It may take a few minutes for the site to be available after the first deployment
+- After each push to the `main` branch, GitHub Pages will automatically rebuild and deploy
 
 ### Testing on Mobile
 
 Once deployed, you can:
-- Share the GitHub Pages URL with yourself via text/email
+- Share the GitHub Pages URL (`https://hollow-ping.github.io/fake-wifi-repo/`) with yourself via text/email
 - Open it on your phone's browser
-- Test all the functionality including the CAPTCHA verification
+- Test all the functionality including:
+  - Account creation flow
+  - CAPTCHA verification with image selection
+  - Login functionality
+  - All navigation flows
 
-### Notes
+## Technical Details
 
-- The site has been configured to work on GitHub Pages domains (github.io)
-- All relative paths should work correctly
-- The domain redirect logic has been updated to allow GitHub Pages
+### Domain Configuration
+
+The `index.html` file has been configured to work on GitHub Pages:
+- Domain redirect logic allows `github.io` domains
+- Also allows local IP addresses (`192.168.4.1`) for local testing
+- Original domain redirect (`burner-net.com`) is preserved for production use
+
+### File Structure
+
+- `index.html` - Main entry point (portal splash screen)
+- `create-account/` - Account creation flow pages
+- `verify/` - CAPTCHA verification pages and image assets
+- `connect/` - Connection simulation pages
+- `intranet/` - Intranet access pages
+- `js/` - JavaScript files including CAPTCHA logic and manifests
+- `css/` - Stylesheet files
+
+### Relative Paths
+
+All paths in the project use relative URLs, which work correctly on GitHub Pages. The project structure is maintained when deployed.
+
+## Notes for LLMs
+
+- This project is a static website that simulates a WiFi captive portal
+- It uses localStorage for session management (burnerName, tempBurnerName)
+- The CAPTCHA system loads images from the `verify/captcha-images/` directory
+- GitHub Pages serves the site from the root directory
+- The repository is public and the site is accessible at the GitHub Pages URL above
+- All functionality is client-side JavaScript - no backend required
+
+# Sync Macbook to Pi
+
+`rsync -avz --exclude='.git' --exclude='.DS_Store' --exclude='.vscode' --exclude='.idea' /Users/john/Documents/Projects/fake-wifi/fake-wifi-repo/ j@jp6.local:~/fake-wifi-repo/`
+
 
