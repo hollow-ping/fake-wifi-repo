@@ -19,7 +19,7 @@ fi
 
 # Install packages
 sudo apt update
-sudo apt install -y hostapd dnsmasq lighttpd
+sudo apt install -y hostapd dnsmasq lighttpd iptables-persistent
 
 # Copy your files
 sudo rm -rf /var/www/html/*
@@ -137,7 +137,18 @@ mkdir -p /var/log
     
     echo "Starting dnsmasq..."
     sudo systemctl start dnsmasq
-    
+
+    echo "Configuring iptables for captive portal..."
+    # Belt-and-suspenders: redirect all HTTP on AP interface to our portal even if DNS lags
+    iptables -t nat -D PREROUTING -i uap0 -p tcp --dport 80 -j DNAT --to-destination 192.168.4.1:80 2>/dev/null || true
+    iptables -t nat -A PREROUTING -i uap0 -p tcp --dport 80 -j DNAT --to-destination 192.168.4.1:80
+    # Reject HTTPS fast so phones don't wait for timeout before HTTP captive portal probe
+    iptables -D INPUT -i uap0 -p tcp --dport 443 -j REJECT --reject-with tcp-reset 2>/dev/null || true
+    iptables -A INPUT -i uap0 -p tcp --dport 443 -j REJECT --reject-with tcp-reset
+    # Persist rules across reboots
+    netfilter-persistent save 2>/dev/null || true
+    echo "✓ iptables configured"
+
     echo "Ensuring SSH is accessible..."
     sudo systemctl start ssh 2>/dev/null || sudo systemctl start sshd 2>/dev/null || true
     
@@ -172,6 +183,9 @@ sudo systemctl stop dnsmasq
 sudo ip addr del 192.168.4.1/24 dev uap0 2>/dev/null || true
 sudo ip link set uap0 down 2>/dev/null || true
 sudo iw dev uap0 del 2>/dev/null || true
+# Clean up iptables rules
+iptables -t nat -D PREROUTING -i uap0 -p tcp --dport 80 -j DNAT --to-destination 192.168.4.1:80 2>/dev/null || true
+iptables -D INPUT -i uap0 -p tcp --dport 443 -j REJECT --reject-with tcp-reset 2>/dev/null || true
 echo "AP stopped. Virtual interface uap0 removed."
 echo "wlan0 remains connected for SSH access."
 SCRIPT
@@ -210,12 +224,20 @@ if ! grep -q "captive-portal" /etc/lighttpd/lighttpd.conf; then
     sudo tee -a /etc/lighttpd/lighttpd.conf > /dev/null <<'LIGHTTPD_CONFIG'
 
 # Captive portal configuration
-server.modules += ( "mod_rewrite" )
+server.modules += ( "mod_rewrite", "mod_redirect" )
 
-# Serve portal for any hostname (google.com, facebook.com, etc. all get redirected)
-# Only redirect if the file doesn't exist
+# Captive portal probe paths - return 302 to portal so all OSes trigger their browser
+# iOS probes: hotspot-detect.html, library/test/success.html
+# Android probes: generate_204, check_network_status.txt
+# Windows probes: connecttest.txt, ncsi.txt
+# Firefox: success.txt
+$HTTP["url"] =~ "^/(hotspot-detect\.html|generate_204|ncsi\.txt|connecttest\.txt|success\.txt|check_network_status\.txt)" {
+    url.redirect = ("^/.*$" => "http://192.168.4.1/")
+}
+
+# Rewrite any other non-file request to the portal
 $HTTP["url"] !~ "^/(index\.html|.*\.(html|css|js|jpg|jpeg|png|gif|ico|json|txt|pdf|svg|woff|woff2|ttf|eot|mp4|webm|map))" {
-    url.rewrite-once = ( 
+    url.rewrite-once = (
         "^/(.*)" => "/index.html"
     )
 }
