@@ -1,12 +1,33 @@
 {
-  "folders": [
-    "captcha_bm",
-    "captcha_fire",
-    "captcha_map",
-    "captcha_tester",
-    "captcha_traffic_multilight",
-    "captcha_traffic2",
-    "captcha_trafficlight"
+  "randomOrder": true,
+  "captchas": [
+    {
+      "folder": "captcha_bm",
+      "question": "Select all images related to Burning Man."
+    },
+    {
+      "folder": "captcha_fire",
+      "question": "Select all images that contain fire."
+    },
+    {
+      "folder": "captcha_map",
+      "question": "Select all images showing a map."
+    },
+    {
+      "folder": "captcha_tester",
+      "question": "Select all images containing a bicycle."
+    },
+    {
+      "folder": "captcha_traffic_multilight",
+      "question": "Select all images with multiple traffic lights."
+    },
+    {
+      "folder": "captcha_traffic2",
+      "question": "Select all images showing vehicles in traffic."
+    },
+    {
+      "folder": "captcha_trafficlight",
+      "question": "Select all images containing a traffic light."
+    }
   ]
 }
-
