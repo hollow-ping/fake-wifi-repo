@@ -257,7 +257,8 @@
         function restorePost(i) {
             const posts   = getPosts();
             const archive = getArchive();
-            posts.unshift(archive.splice(i, 1)[0]);
+            posts.push(archive.splice(i, 1)[0]);
+            posts.sort((a, b) => b.timestamp - a.timestamp);
             savePosts(posts);
             saveArchive(archive);
             refresh();
