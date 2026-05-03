@@ -48,15 +48,11 @@
         button:hover { background: #1177bb; }
         button.danger { background: #a1260d; }
         button.danger:hover { background: #c72e0f; }
-        button.sm {
-            padding: 0.2rem 0.6rem;
-            font-size: 0.75rem;
-        }
+        button.sm { padding: 0.2rem 0.6rem; font-size: 0.75rem; }
         .nav-links { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; }
         .nav-links a { color: #569cd6; text-decoration: none; font-size: 0.9rem; }
         .nav-links a:hover { text-decoration: underline; }
 
-        /* Board */
         .post-row {
             border-bottom: 1px solid #3e3e42;
             padding: 0.6rem 0;
@@ -66,10 +62,20 @@
             gap: 0.75rem;
         }
         .post-row:last-child { border-bottom: none; }
+        .post-row.archived { opacity: 0.5; }
         .post-meta { color: #858585; white-space: nowrap; min-width: 90px; }
         .post-body { flex: 1; color: #ccc; word-break: break-word; }
         .post-author { color: #4EC9B0; font-weight: bold; }
         .post-replies { color: #858585; font-size: 0.8rem; margin-top: 0.2rem; }
+
+        .archive-divider {
+            border-top: 1px solid #3e3e42;
+            margin: 1rem 0 0.75rem;
+            font-size: 0.8rem;
+            color: #858585;
+            padding-top: 0.75rem;
+        }
+
         .seed-form {
             border-top: 1px solid #3e3e42;
             margin-top: 1rem;
@@ -90,7 +96,6 @@
             box-sizing: border-box;
         }
         .seed-form textarea { min-height: 60px; resize: vertical; }
-        #post-list { min-height: 1.5rem; }
         .empty { color: #858585; font-size: 0.85rem; }
     </style>
 </head>
@@ -105,6 +110,7 @@
                 <span class="label">burnerName</span><span class="val" id="st-perm">-</span>
                 <span class="label">tempBurnerName</span><span class="val" id="st-temp">-</span>
                 <span class="label">Intranet posts</span><span class="val" id="st-posts">-</span>
+                <span class="label">Archived posts</span><span class="val" id="st-archive">-</span>
             </div>
             <div class="btns">
                 <button onclick="refresh()">Refresh</button>
@@ -116,9 +122,13 @@
         <div class="section">
             <h2>Intranet Board</h2>
             <div class="btns" style="margin-bottom: 1rem;">
-                <button class="danger" onclick="clearPosts()">Clear All Posts</button>
+                <button class="danger" onclick="archiveAll()">Archive All Posts</button>
             </div>
             <div id="post-list"><span class="empty">No posts.</span></div>
+            <div id="archive-section" style="display:none;">
+                <div class="archive-divider" id="archive-label"></div>
+                <div id="archive-list"></div>
+            </div>
             <div class="seed-form">
                 <span style="color: #858585; font-size: 0.8rem;">Seed a post</span>
                 <input type="text" id="seed-author" placeholder="Author name...">
@@ -142,6 +152,11 @@
 
     <script src="js/main.js"></script>
     <script>
+        function getPosts()   { try { return JSON.parse(localStorage.getItem('intranetPosts')  || '[]'); } catch(e) { return []; } }
+        function getArchive() { try { return JSON.parse(localStorage.getItem('archivedPosts')  || '[]'); } catch(e) { return []; } }
+        function savePosts(p)   { localStorage.setItem('intranetPosts',  JSON.stringify(p)); }
+        function saveArchive(a) { localStorage.setItem('archivedPosts', JSON.stringify(a)); }
+
         function refresh() {
             const perm = localStorage.getItem('burnerName');
             const temp = localStorage.getItem('tempBurnerName');
@@ -157,18 +172,49 @@
             tempEl.textContent = temp || 'none';
             tempEl.className = 'val ' + (temp ? 'temp' : 'none');
 
-            const posts = getPosts();
-            document.getElementById('st-posts').textContent = posts.length;
+            const posts   = getPosts();
+            const archive = getArchive();
+            document.getElementById('st-posts').textContent   = posts.length;
+            document.getElementById('st-archive').textContent = archive.length;
+
             renderPosts(posts);
+            renderArchive(archive);
         }
 
-        function getPosts() {
-            try { return JSON.parse(localStorage.getItem('intranetPosts') || '[]'); }
-            catch (e) { return []; }
-        }
+        function makePostRow(post, btnLabel, btnClass, onClickFn) {
+            const row = document.createElement('div');
+            row.className = 'post-row' + (btnLabel === '↑' ? ' archived' : '');
 
-        function savePosts(posts) {
-            localStorage.setItem('intranetPosts', JSON.stringify(posts));
+            const meta = document.createElement('div');
+            meta.className = 'post-meta';
+            meta.textContent = new Date(post.timestamp).toLocaleDateString();
+
+            const body = document.createElement('div');
+            body.className = 'post-body';
+            const author = document.createElement('span');
+            author.className = 'post-author';
+            author.textContent = post.author + ' ';
+            const content = document.createElement('span');
+            const preview = post.content.length > 80 ? post.content.slice(0, 80) + '…' : post.content;
+            content.textContent = preview;
+            body.appendChild(author);
+            body.appendChild(content);
+            if (post.replies && post.replies.length > 0) {
+                const replies = document.createElement('div');
+                replies.className = 'post-replies';
+                replies.textContent = `↳ ${post.replies.length} repl${post.replies.length === 1 ? 'y' : 'ies'}`;
+                body.appendChild(replies);
+            }
+
+            const btn = document.createElement('button');
+            btn.className = btnClass + ' sm';
+            btn.textContent = btnLabel;
+            btn.onclick = onClickFn;
+
+            row.appendChild(meta);
+            row.appendChild(body);
+            row.appendChild(btn);
+            return row;
         }
 
         function renderPosts(posts) {
@@ -179,68 +225,61 @@
             }
             el.innerHTML = '';
             posts.forEach((post, i) => {
-                const row = document.createElement('div');
-                row.className = 'post-row';
-
-                const meta = document.createElement('div');
-                meta.className = 'post-meta';
-                meta.textContent = new Date(post.timestamp).toLocaleDateString();
-
-                const body = document.createElement('div');
-                body.className = 'post-body';
-
-                const author = document.createElement('span');
-                author.className = 'post-author';
-                author.textContent = post.author + ' ';
-
-                const content = document.createElement('span');
-                const preview = post.content.length > 80 ? post.content.slice(0, 80) + '…' : post.content;
-                content.textContent = preview;
-
-                body.appendChild(author);
-                body.appendChild(content);
-
-                if (post.replies && post.replies.length > 0) {
-                    const replies = document.createElement('div');
-                    replies.className = 'post-replies';
-                    replies.textContent = `↳ ${post.replies.length} repl${post.replies.length === 1 ? 'y' : 'ies'}`;
-                    body.appendChild(replies);
-                }
-
-                const del = document.createElement('button');
-                del.className = 'danger sm';
-                del.textContent = '✕';
-                del.onclick = () => deletePost(i);
-
-                row.appendChild(meta);
-                row.appendChild(body);
-                row.appendChild(del);
-                el.appendChild(row);
+                el.appendChild(makePostRow(post, '↓', 'danger', () => archivePost(i)));
             });
         }
 
-        function deletePost(index) {
-            const posts = getPosts();
-            posts.splice(index, 1);
+        function renderArchive(archive) {
+            const section = document.getElementById('archive-section');
+            const label   = document.getElementById('archive-label');
+            const list    = document.getElementById('archive-list');
+            if (archive.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+            section.style.display = 'block';
+            label.textContent = `Archived (${archive.length})`;
+            list.innerHTML = '';
+            archive.forEach((post, i) => {
+                list.appendChild(makePostRow(post, '↑', '', () => restorePost(i)));
+            });
+        }
+
+        function archivePost(i) {
+            const posts   = getPosts();
+            const archive = getArchive();
+            archive.unshift(posts.splice(i, 1)[0]);
             savePosts(posts);
+            saveArchive(archive);
             refresh();
         }
 
-        function clearPosts() {
-            if (confirm('Clear all posts?')) {
-                localStorage.removeItem('intranetPosts');
-                refresh();
-            }
+        function restorePost(i) {
+            const posts   = getPosts();
+            const archive = getArchive();
+            posts.unshift(archive.splice(i, 1)[0]);
+            savePosts(posts);
+            saveArchive(archive);
+            refresh();
+        }
+
+        function archiveAll() {
+            const posts   = getPosts();
+            if (posts.length === 0) return;
+            const archive = getArchive();
+            saveArchive([...posts, ...archive]);
+            savePosts([]);
+            refresh();
         }
 
         function seedPost() {
-            const author = document.getElementById('seed-author').value.trim();
+            const author  = document.getElementById('seed-author').value.trim();
             const content = document.getElementById('seed-content').value.trim();
             if (!author || !content) return;
             const posts = getPosts();
             posts.unshift({ author, content, timestamp: Date.now(), replies: [] });
             savePosts(posts);
-            document.getElementById('seed-author').value = '';
+            document.getElementById('seed-author').value  = '';
             document.getElementById('seed-content').value = '';
             refresh();
         }
