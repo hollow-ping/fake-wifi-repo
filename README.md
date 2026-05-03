@@ -76,11 +76,15 @@ The `index.html` file has been configured to work on GitHub Pages:
 
 - `index.html` - Main entry point (portal splash screen)
 - `create-account/` - Account creation flow pages
-- `verify/` - CAPTCHA verification pages and image assets
+- `verify/` - CAPTCHA verification pages; `captcha.html` handles both challenges
+- `verify/captcha-images/` - One subfolder per captcha set, each with `image-1.png`–`image-9.png`
 - `connect/` - Connection simulation pages
 - `intranet/` - Intranet access pages
 - `js/` - JavaScript files including CAPTCHA logic and manifests
+- `js/captcha-manifest.json` - Captcha config: `randomOrder` flag + `captchas` array (each entry has `folder` and `question`)
 - `css/` - Stylesheet files
+- `setup-pi.sh` - Raspberry Pi setup script (hostapd, dnsmasq, lighttpd, iptables)
+- `captive-portal-files/` - OS captive portal probe files (hotspot-detect, generate_204, connecttest)
 
 ### Relative Paths
 
@@ -90,10 +94,14 @@ All paths in the project use relative URLs, which work correctly on GitHub Pages
 
 - This project is a static website that simulates a WiFi captive portal
 - It uses localStorage for session management (burnerName, tempBurnerName)
-- The CAPTCHA system loads images from the `verify/captcha-images/` directory
+- The CAPTCHA system uses `verify/captcha.html` for both challenges (single page, 2-step flow)
+- CAPTCHA images live in `verify/captcha-images/<folder>/image-1.png` through `image-9.png` (pre-split, always exactly 9)
+- `js/captcha-manifest.json` controls which captcha sets are active: top-level `randomOrder` (bool) shuffles tile display order; `captchas` array maps each folder to its question; 2 sets are picked randomly per session
+- To add a new captcha set: add 9 PNGs named `image-1.png`–`image-9.png` to a new subfolder under `verify/captcha-images/`, then add an entry to `captchas` in the manifest
 - GitHub Pages serves the site from the root directory
 - The repository is public and the site is accessible at the GitHub Pages URL above
 - All functionality is client-side JavaScript - no backend required
+- Pi deployment: `setup-pi.sh` configures hostapd (AP on `uap0`), dnsmasq (DNS wildcard → 192.168.4.1), lighttpd (portal + captive portal probe redirects), and iptables (port 80 DNAT, port 443 fast-reject)
 
 # Sync Macbook to Pi
 
