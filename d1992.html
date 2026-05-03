@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>d1992</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 2rem;
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #ccc;
+            line-height: 1.6;
+        }
+        .container { max-width: 700px; margin: 0 auto; }
+        h1 { color: #ff6b35; border-bottom: 2px solid #ff6b35; padding-bottom: 0.5rem; margin-bottom: 1.5rem; }
+        h2 { color: #569cd6; margin: 0 0 1rem 0; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 1px; }
+        .section {
+            background: #252526;
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 1rem;
+            border-radius: 5px;
+            border: 1px solid #3e3e42;
+        }
+        .state-row {
+            display: grid;
+            grid-template-columns: 160px 1fr;
+            gap: 0.4rem 1rem;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+        .label { color: #858585; }
+        .val { color: #4EC9B0; font-weight: bold; word-break: break-all; }
+        .val.none { color: #f48771; }
+        .val.temp { color: #ff9800; }
+        .btns { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+        button {
+            padding: 0.5rem 1rem;
+            background: #0e639c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+        button:hover { background: #1177bb; }
+        button.danger { background: #a1260d; }
+        button.danger:hover { background: #c72e0f; }
+        .nav-links { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; }
+        .nav-links a { color: #569cd6; text-decoration: none; font-size: 0.9rem; }
+        .nav-links a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>d1992</h1>
+
+        <div class="section">
+            <h2>State</h2>
+            <div class="state-row">
+                <span class="label">Device state</span><span class="val" id="st-state">-</span>
+                <span class="label">burnerName</span><span class="val" id="st-perm">-</span>
+                <span class="label">tempBurnerName</span><span class="val" id="st-temp">-</span>
+                <span class="label">Intranet posts</span><span class="val" id="st-posts">-</span>
+            </div>
+            <div class="btns">
+                <button onclick="refresh()">Refresh</button>
+                <button class="danger" onclick="resetNewDevice()">Reset → New Device</button>
+                <button class="danger" onclick="clearAll()">Clear All Storage</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Navigate</h2>
+            <div class="nav-links">
+                <a href="/">Home</a>
+                <a href="/create-account/start.html">Create Account</a>
+                <a href="/login.html">Login</a>
+                <a href="/verify/captcha.html">Captcha</a>
+                <a href="/connect/go.html">Connect</a>
+                <a href="/intranet/home.html">Intranet</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/main.js"></script>
+    <script>
+        function refresh() {
+            const perm = localStorage.getItem('burnerName');
+            const temp = localStorage.getItem('tempBurnerName');
+
+            document.getElementById('st-state').textContent = perm ? 'hasAccount' : 'newDevice';
+            document.getElementById('st-state').className = 'val ' + (perm ? '' : 'none');
+
+            const permEl = document.getElementById('st-perm');
+            permEl.textContent = perm || 'none';
+            permEl.className = 'val ' + (perm ? '' : 'none');
+
+            const tempEl = document.getElementById('st-temp');
+            tempEl.textContent = temp || 'none';
+            tempEl.className = 'val ' + (temp ? 'temp' : 'none');
+
+            try {
+                const posts = JSON.parse(localStorage.getItem('intranetPosts') || '[]');
+                document.getElementById('st-posts').textContent = posts.length;
+            } catch (e) {
+                document.getElementById('st-posts').textContent = '0';
+            }
+        }
+
+        function resetNewDevice() {
+            localStorage.removeItem('tempBurnerName');
+            clearBurnerCookie();
+            refresh();
+        }
+
+        function clearAll() {
+            if (confirm('Clear ALL localStorage?')) {
+                localStorage.clear();
+                refresh();
+            }
+        }
+
+        refresh();
+        setInterval(refresh, 3000);
+    </script>
+</body>
+</html>
