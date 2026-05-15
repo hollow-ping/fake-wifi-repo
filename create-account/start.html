@@ -283,7 +283,7 @@
                     statusMessage.className = 'status-message status-taken';
                     const suggestion = generateSuggestion(name);
                     statusMessage.textContent = '';
-                    statusMessage.appendChild(document.createTextNode('Sorry that Burner name is already taken'));
+                    statusMessage.appendChild(document.createTextNode('Sorry that Burner name is not unique.'));
                     statusMessage.appendChild(document.createElement('br'));
                     statusMessage.appendChild(document.createTextNode('Suggestion: '));
                     const suggestionSpan = document.createElement('span');
