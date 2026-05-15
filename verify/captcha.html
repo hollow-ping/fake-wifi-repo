@@ -176,44 +176,32 @@
         // State
         let currentCaptchaIndex = 0;
         let selectedIndices = new Set();
+        let correctIndices = new Set(); // grid positions that are "Right" images
         let attempts = [0, 0];
-        let selectedCaptchas = []; // [{folder, question}, ...]
-        let randomOrder = true;
-        let lastSubmittedSelection = new Set();
+        let selectedCaptchas = []; // [{folder, question, right, wrong}, ...]
 
-        // Probe a single image src, resolves with src or rejects
-        function tryLoadImage(src) {
-            return new Promise((resolve, reject) => {
-                const img = new Image();
-                img.onload = () => resolve(src);
-                img.onerror = () => reject();
-                img.src = src;
-            });
-        }
-
-        // Try .png then .jpg for image-{i} in a folder
-        async function tryLoadSlot(basePath, i) {
-            for (const ext of ['.png', '.jpg', '.jpeg']) {
-                try {
-                    return await tryLoadImage(`${basePath}/image-${i}${ext}`);
-                } catch (e) { /* try next */ }
+        // Shuffle an array in place (Fisher-Yates)
+        function shuffle(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
             }
-            return null;
+            return arr;
         }
 
-        // Load manifest, pick 2 random captchas
+        // Pick n random items from an array
+        function pickRandom(arr, n) {
+            return shuffle([...arr]).slice(0, n);
+        }
+
+        // Load manifest, pick 2 random captchas from the 3
         async function loadManifest() {
             const response = await fetch('../js/captcha-manifest.json');
             const data = await response.json();
-            randomOrder = data.randomOrder !== false; // default true
-
             const captchas = data.captchas || [];
             if (captchas.length === 0) throw new Error('No captchas configured in manifest');
-
-            const shuffled = [...captchas].sort(() => Math.random() - 0.5);
-            selectedCaptchas = shuffled.length >= 2
-                ? shuffled.slice(0, 2)
-                : [shuffled[0], shuffled[0]];
+            const shuffled = shuffle([...captchas]);
+            selectedCaptchas = shuffled.slice(0, 2);
         }
 
         // Load and render the current captcha
@@ -225,104 +213,96 @@
 
             progressEl.textContent = `Captcha ${currentCaptchaIndex + 1} of 2`;
             selectedIndices.clear();
-            lastSubmittedSelection.clear();
+            correctIndices.clear();
             submitBtn.disabled = true;
             document.getElementById('errorMessage').textContent = '';
             gridContainer.innerHTML = '<div class="loading"></div>';
 
-            const { folder, question } = selectedCaptchas[currentCaptchaIndex];
+            const { folder, question, right, wrong } = selectedCaptchas[currentCaptchaIndex];
             questionEl.textContent = question;
 
-            // Load all 9 slots in parallel (numeric order 1-9)
-            const basePath = `captcha-images/${folder}`;
-            const paths = await Promise.all(
-                Array.from({ length: 9 }, (_, i) => tryLoadSlot(basePath, i + 1))
-            );
+            // Pick 3 random from Right, 6 random from Wrong
+            const rightPicked = pickRandom(right, 3).map(f => ({ src: `../Captcha/${folder}/Right/${f}`, isRight: true }));
+            const wrongPicked = pickRandom(wrong, 6).map(f => ({ src: `../Captcha/${folder}/Wrong/${f}`, isRight: false }));
 
-            // paths is in canonical order [1..9]; shuffle if randomOrder
-            const slots = randomOrder
-                ? [...paths].sort(() => Math.random() - 0.5)
-                : paths;
+            // Combine and shuffle all 9
+            const slots = shuffle([...rightPicked, ...wrongPicked]);
 
             gridContainer.innerHTML = '';
 
-            for (let i = 0; i < 9; i++) {
+            slots.forEach((slot, i) => {
                 const item = document.createElement('div');
                 item.className = 'grid-item';
                 item.dataset.index = i;
 
-                if (slots[i]) {
-                    const img = document.createElement('img');
-                    img.src = slots[i];
-                    img.alt = `Image ${i + 1}`;
-                    img.onerror = function() {
-                        this.style.display = 'none';
-                        item.style.backgroundColor = '#ddd';
-                    };
-                    item.appendChild(img);
-                    item.addEventListener('click', function() {
-                        toggleSelection(parseInt(this.dataset.index));
-                    });
-                } else {
-                    item.classList.add('blank');
-                }
+                if (slot.isRight) correctIndices.add(i);
+
+                const img = document.createElement('img');
+                img.src = slot.src;
+                img.alt = `Image ${i + 1}`;
+                img.onerror = function() {
+                    this.style.display = 'none';
+                    item.style.backgroundColor = '#ddd';
+                };
+                item.appendChild(img);
+                item.addEventListener('click', function() {
+                    toggleSelection(parseInt(this.dataset.index));
+                });
 
                 gridContainer.appendChild(item);
-            }
+            });
         }
 
         // Toggle selection on a tile
         function toggleSelection(index) {
-            const item = document.querySelector(`[data-index="${index}"]`);
-            if (item && item.classList.contains('blank')) return;
-
             if (selectedIndices.has(index)) {
                 selectedIndices.delete(index);
             } else {
                 selectedIndices.add(index);
             }
-
-            if (item) {
-                item.classList.toggle('selected', selectedIndices.has(index));
-            }
-
+            const item = document.querySelector(`[data-index="${index}"]`);
+            if (item) item.classList.toggle('selected', selectedIndices.has(index));
             updateSubmitButton();
         }
 
-        // Enable submit only if selection changed from last submission
+        // Enable submit only if at least one image is selected
         function updateSubmitButton() {
-            const submitBtn = document.getElementById('submitBtn');
-            const currentSelection = Array.from(selectedIndices).sort().join(',');
-            const lastSelection = Array.from(lastSubmittedSelection).sort().join(',');
-
-            submitBtn.disabled = !(currentSelection !== lastSelection && selectedIndices.size > 0);
+            document.getElementById('submitBtn').disabled = selectedIndices.size === 0;
         }
 
-        // Submit: 30% pass chance, guaranteed pass on 3rd attempt
+        // Check if selected exactly matches the 3 correct images
+        function isCorrect() {
+            if (selectedIndices.size !== correctIndices.size) return false;
+            for (const idx of correctIndices) {
+                if (!selectedIndices.has(idx)) return false;
+            }
+            return true;
+        }
+
+        // Submit: pass if correct, or after 3 failed attempts auto-advance
         async function submitCaptcha() {
             attempts[currentCaptchaIndex]++;
-            const shouldPass = attempts[currentCaptchaIndex] >= 3 || Math.random() < 0.3;
+            const correct = isCorrect();
+            const maxAttemptsReached = attempts[currentCaptchaIndex] >= 3;
 
-            if (!shouldPass) {
+            if (!correct && !maxAttemptsReached) {
                 document.getElementById('errorMessage').textContent =
-                    'Verification failed. Please try again.';
+                    'Incorrect. Please try again.';
                 selectedIndices.forEach(idx => {
                     const item = document.querySelector(`[data-index="${idx}"]`);
                     if (item) item.classList.remove('selected');
                 });
                 selectedIndices.clear();
-                lastSubmittedSelection.clear();
                 updateSubmitButton();
                 return;
             }
 
-            lastSubmittedSelection = new Set(selectedIndices);
+            // Advance to next captcha or finish
             currentCaptchaIndex++;
-
             if (currentCaptchaIndex < 2) {
+                document.getElementById('errorMessage').textContent = '';
                 loadCaptcha();
             } else {
-                // Both captchas complete - commit signed cookie
                 const burnerName = await commitBurnerName();
                 if (!burnerName) {
                     const tempName = getTempBurnerName();

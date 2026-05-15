@@ -85,9 +85,10 @@
         const currentHost = window.location.hostname;
         const isGitHubPages = currentHost.includes('github.io');
         const isLocalIP = currentHost === '192.168.4.1' || currentHost.includes('192.168.4.1');
-        
-        // If not on the target domain and not on the IP or GitHub Pages, redirect
-        if (currentHost !== targetDomain && !isLocalIP && !isGitHubPages) {
+        const isLocalhost = currentHost === 'localhost' || currentHost === '127.0.0.1';
+
+        // If not on the target domain and not on the IP, GitHub Pages, or localhost, redirect
+        if (currentHost !== targetDomain && !isLocalIP && !isGitHubPages && !isLocalhost) {
             window.location.replace('http://' + targetDomain + '/');
             // Exit early - don't run other checks yet
             throw new Error('Redirecting...');

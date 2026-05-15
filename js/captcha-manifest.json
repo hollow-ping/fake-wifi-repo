@@ -1,33 +1,91 @@
 {
-  "randomOrder": true,
   "captchas": [
     {
-      "folder": "captcha_bm",
-      "question": "Select all images related to Burning Man."
+      "folder": "Bob Ross",
+      "question": "Pick all the images of Bob Ross.",
+      "right": [
+        "Archer-In-Search-of-Sleep-with-Bob-Ross.webp",
+        "Bob_at_Easel.jpg",
+        "download-1.jpg",
+        "download-2.jpg",
+        "download.jpg",
+        "images-1.jpg",
+        "images-2.jpg",
+        "images-3.jpg",
+        "images.jpg"
+      ],
+      "wrong": [
+        "download-1.jpg",
+        "download-10.jpg",
+        "download-11.jpg",
+        "download-2.jpg",
+        "download-3.jpg",
+        "download-4.jpg",
+        "download-5.jpg",
+        "download-6.jpg",
+        "download-7.jpg",
+        "download-8.jpg",
+        "download-9.jpg",
+        "download.jpg"
+      ]
     },
     {
-      "folder": "captcha_fire",
-      "question": "Select all images that contain fire."
+      "folder": "Effigies",
+      "question": "Pick all the images of effigies.",
+      "right": [
+        "2a8c119c-aba0-4279-81be-a39831c2dcee-51563578.webp",
+        "ca-times.brightspotcdn.jpg",
+        "download-1.jpg",
+        "download-2.jpg",
+        "download-3.jpg",
+        "download-4.jpg",
+        "download-5.jpg",
+        "download-6.jpg",
+        "download.jpg"
+      ],
+      "wrong": [
+        "55784d4569bedd9b50880a33.webp",
+        "download-1.jpg",
+        "download-2.jpg",
+        "download-3.jpg",
+        "download.jpg",
+        "images-1.jpg",
+        "images-2.jpg",
+        "images-3.jpg",
+        "images-4.jpg",
+        "images-5.jpg",
+        "images-6.jpg",
+        "images-7.jpg",
+        "images.jpg"
+      ]
     },
     {
-      "folder": "captcha_map",
-      "question": "Select all images showing a map."
-    },
-    {
-      "folder": "captcha_tester",
-      "question": "Select all images containing a bicycle."
-    },
-    {
-      "folder": "captcha_traffic_multilight",
-      "question": "Select all images with multiple traffic lights."
-    },
-    {
-      "folder": "captcha_traffic2",
-      "question": "Select all images showing vehicles in traffic."
-    },
-    {
-      "folder": "captcha_trafficlight",
-      "question": "Select all images containing a traffic light."
+      "folder": "MOOP ",
+      "question": "Pick all the images of MOOP.",
+      "right": [
+        "download-1.jpg",
+        "download.jpg",
+        "images-1.jpg",
+        "images-2.jpg",
+        "images-3.jpg",
+        "images-4.jpg",
+        "images-5.jpg",
+        "images-6.jpg",
+        "images.jpg"
+      ],
+      "wrong": [
+        "download-1.jpg",
+        "download-2.jpg",
+        "download-3.jpg",
+        "download-4.jpg",
+        "download-5.jpg",
+        "download-6.jpg",
+        "download-7.jpg",
+        "download.jpg",
+        "images-1.jpg",
+        "images-2.jpg",
+        "images.jpg"
+      ]
     }
   ]
 }
