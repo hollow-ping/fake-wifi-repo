@@ -1,127 +1,80 @@
 {
   "questions": [
     {
-      "id": "time_preference",
+      "id": "burns_attended",
       "type": "multiple-choice",
-      "text": "What time of day do you feel most productive?",
+      "text": "How many burns have you been to?",
       "required": true,
       "options": [
-        {"value": "early_morning", "label": "Early morning (5-8am)"},
-        {"value": "morning", "label": "Morning (8am-12pm)"},
-        {"value": "afternoon", "label": "Afternoon (12-5pm)"},
-        {"value": "evening", "label": "Evening (5-9pm)"},
-        {"value": "night", "label": "Night (9pm-2am)"},
-        {"value": "varies", "label": "It varies"}
+        {"value": "first", "label": "This is my first!"},
+        {"value": "2_5", "label": "2-5 burns"},
+        {"value": "6_10", "label": "6-10 burns"},
+        {"value": "11_20", "label": "11-20 burns"},
+        {"value": "21_plus", "label": "21+ burns"},
+        {"value": "crusty", "label": "I've been a crusty burner since the 90s."},
+        {"value": "larry", "label": "I am the reincarnation of Larry Harvey"}
       ]
     },
     {
-      "id": "decision_making",
-      "type": "multiple-choice",
-      "text": "When making decisions, you tend to:",
-      "required": true,
-      "options": [
-        {"value": "quick", "label": "Decide quickly and move on"},
-        {"value": "research", "label": "Research thoroughly first"},
-        {"value": "intuition", "label": "Go with your gut feeling"},
-        {"value": "consult", "label": "Ask others for input"},
-        {"value": "procrastinate", "label": "Put it off until necessary"}
-      ]
-    },
-    {
-      "id": "learning_style",
-      "type": "multi-select",
-      "text": "How do you prefer to learn new things? (select all that apply)",
-      "required": true,
-      "options": [
-        {"value": "reading", "label": "Reading documentation or articles"},
-        {"value": "videos", "label": "Watching video tutorials"},
-        {"value": "hands_on", "label": "Hands-on experimentation"},
-        {"value": "examples", "label": "Looking at code examples"},
-        {"value": "teaching", "label": "Teaching others"},
-        {"value": "courses", "label": "Structured courses"}
-      ]
-    },
-    {
-      "id": "workspace",
+      "id": "favorite_theme_camp",
       "type": "text",
-      "text": "Describe your ideal workspace in one sentence:",
+      "text": "What is your favorite theme camp this year?",
       "required": true,
-      "placeholder": "e.g., Quiet corner with natural light and a standing desk"
+      "placeholder": "e.g., Camp Questionable Choices"
     },
     {
-      "id": "problem_solving",
-      "type": "multiple-choice",
-      "text": "When you encounter a bug or problem, your first step is usually:",
-      "required": true,
-      "options": [
-        {"value": "google", "label": "Search for solutions online"},
-        {"value": "debug", "label": "Add debug logs and trace through code"},
-        {"value": "ask", "label": "Ask a colleague or community"},
-        {"value": "restart", "label": "Try restarting/turning it off and on"},
-        {"value": "ignore", "label": "Work around it temporarily"}
-      ]
-    },
-    {
-      "id": "communication_tools",
+      "id": "why_burnernet",
       "type": "multi-select",
-      "text": "Which communication methods do you prefer? (select all that apply)",
+      "text": "Why do you need BurnerNet? (select all that apply)",
       "required": true,
       "options": [
-        {"value": "email", "label": "Email"},
-        {"value": "slack", "label": "Slack/Teams"},
-        {"value": "async", "label": "Async text (Discord, etc.)"},
-        {"value": "video", "label": "Video calls"},
-        {"value": "phone", "label": "Phone calls"},
-        {"value": "in_person", "label": "In-person"}
+        {"value": "work", "label": "Work"},
+        {"value": "family", "label": "Family"},
+        {"value": "boredom", "label": "Boredom"},
+        {"value": "soul", "label": "Burnernet is my soul and savior"}
       ]
     },
     {
-      "id": "code_review",
+      "id": "volunteering",
       "type": "multiple-choice",
-      "text": "When reviewing someone else's code, you focus on:",
+      "text": "Did you sign up for a volunteering shift?",
       "required": true,
       "options": [
-        {"value": "functionality", "label": "Functionality and correctness"},
-        {"value": "style", "label": "Code style and readability"},
-        {"value": "performance", "label": "Performance and optimization"},
-        {"value": "security", "label": "Security and edge cases"},
-        {"value": "all", "label": "All of the above equally"}
+        {"value": "no_hate", "label": "No, I hate contributing to the community"},
+        {"value": "no_will", "label": "No but I will after being asked this!"},
+        {"value": "yes_more", "label": "Yes, but I need to sign up for more."},
+        {"value": "yes_six", "label": "Yes, got my 6 hours for a reserve ticket!"}
       ]
     },
     {
-      "id": "project_approach",
-      "type": "text",
-      "text": "What's one thing you always do at the start of a new project?",
-      "required": true,
-      "placeholder": "e.g., Set up version control, create a README, sketch the architecture..."
-    },
-    {
-      "id": "workflow_preferences",
+      "id": "sleeping",
       "type": "multi-select",
-      "text": "What helps you stay focused while working? (select all that apply)",
+      "text": "Where are you sleeping? (select all that apply)",
       "required": true,
       "options": [
-        {"value": "music", "label": "Background music"},
-        {"value": "silence", "label": "Complete silence"},
-        {"value": "breaks", "label": "Regular breaks"},
-        {"value": "lists", "label": "To-do lists"},
-        {"value": "timer", "label": "Pomodoro timer"},
-        {"value": "caffeine", "label": "Coffee/tea"}
+        {"value": "tent", "label": "Tent"},
+        {"value": "rv", "label": "RV"},
+        {"value": "car", "label": "In my car"},
+        {"value": "motel", "label": "Motel 6"},
+        {"value": "outside", "label": "Outside in the grass"},
+        {"value": "no_sleep", "label": "I don't sleep at burns"}
       ]
     },
     {
-      "id": "tech_philosophy",
-      "type": "multiple-choice",
-      "text": "Your philosophy on adopting new technologies:",
+      "id": "effigy_burn",
+      "type": "multi-select",
+      "text": "What are you doing during the effigy burn? (select all that apply)",
       "required": true,
       "options": [
-        {"value": "early", "label": "Try new things early and often"},
-        {"value": "stable", "label": "Wait until they're proven stable"},
-        {"value": "case_by_case", "label": "Evaluate case-by-case"},
-        {"value": "avoid", "label": "Stick with what you know works"},
-        {"value": "experiment", "label": "Experiment in side projects only"}
+        {"value": "already", "label": "It already happened?"},
+        {"value": "spinner", "label": "I am a fire spinner!"},
+        {"value": "perimeter", "label": "I am monitoring the perimeter"},
+        {"value": "drum", "label": "I will be in a drum circle."},
+        {"value": "distance", "label": "I will watch from a safe distance"},
+        {"value": "run", "label": "I will run around the fire until it becomes embers."},
+        {"value": "avoid", "label": "I will be avoiding it altogether."},
+        {"value": "sparkle", "label": "I am a sparkle pony and do not know what you are talking about."}
       ]
     }
   ]
 }
-
