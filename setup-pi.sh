@@ -22,8 +22,8 @@ fi
 
 # Install packages
 sudo apt update
-sudo apt install -y hostapd dnsmasq lighttpd python3 python3-rpi-ws281x 2>/dev/null || \
-sudo apt install -y hostapd dnsmasq lighttpd python3
+sudo apt install -y hostapd dnsmasq lighttpd python3 iptables python3-rpi-ws281x 2>/dev/null || \
+sudo apt install -y hostapd dnsmasq lighttpd python3 iptables
 # NeoPixel library (optional; LED service skips gracefully if missing)
 pip3 install --break-system-packages rpi-ws281x 2>/dev/null || pip3 install rpi-ws281x 2>/dev/null || true
 
@@ -98,9 +98,10 @@ sudo tee /etc/hostapd/hostapd.conf > /dev/null <<EOF
 interface=uap0
 driver=nl80211
 ssid=BURNERNET
+country_code=US
 hw_mode=g
 channel=7
-wmm_enabled=0
+wmm_enabled=1
 macaddr_acl=0
 auth_algs=1
 ignore_broadcast_ssid=0
@@ -115,6 +116,9 @@ sudo mv /etc/dnsmasq.conf /etc/dnsmasq.conf.backup
 sudo tee /etc/dnsmasq.conf > /dev/null <<EOF
 interface=uap0
 dhcp-range=192.168.4.2,192.168.4.20,255.255.255.0,24h
+# RFC 8908 captive portal URL via DHCP option 114 (Android 11+, iOS 14+)
+# Lets the OS fetch the portal API immediately, bypassing DNS-probe games / Private DNS.
+dhcp-option=114,"http://192.168.4.1/captive-portal-api.json"
 address=/#/192.168.4.1
 address=/burner-net.com/192.168.4.1
 # Captive portal detection (explicit; wildcard above catches the rest)
@@ -269,6 +273,26 @@ resolve_ap_phys() {
     echo "(Re)starting dnsmasq so it binds to uap0..."
     sudo systemctl restart dnsmasq
 
+    # Kill DNS-over-TLS (port 853) from clients with a TCP reset so Android's
+    # Private DNS = Automatic fails fast and falls back to system DNS (our dnsmasq).
+    # Without this, port 853 just times out (we have no upstream) and the captive
+    # portal probe never fires.
+    if command -v iptables >/dev/null 2>&1; then
+        echo "Adding iptables rule to reject DoT (port 853) on uap0..."
+        sudo iptables -D INPUT -i uap0 -p tcp --dport 853 -j REJECT --reject-with tcp-reset 2>/dev/null || true
+        sudo iptables -I INPUT -i uap0 -p tcp --dport 853 -j REJECT --reject-with tcp-reset || true
+        sudo iptables -D FORWARD -i uap0 -p tcp --dport 853 -j REJECT --reject-with tcp-reset 2>/dev/null || true
+        sudo iptables -I FORWARD -i uap0 -p tcp --dport 853 -j REJECT --reject-with tcp-reset 2>/dev/null || true
+    elif command -v nft >/dev/null 2>&1; then
+        echo "Adding nftables rule to reject DoT (port 853) on uap0..."
+        sudo nft add table inet fakewifi 2>/dev/null || true
+        sudo nft 'add chain inet fakewifi input { type filter hook input priority 0 ; }' 2>/dev/null || true
+        sudo nft flush chain inet fakewifi input 2>/dev/null || true
+        sudo nft add rule inet fakewifi input iifname "uap0" tcp dport 853 reject with tcp reset || true
+    else
+        echo "WARNING: neither iptables nor nft found — Private DNS (port 853) NOT blocked. Android captive portal may be unreliable."
+    fi
+
     echo "Starting post board API..."
     sudo systemctl start burnernet-api.service 2>/dev/null || true
     
@@ -307,6 +331,13 @@ sudo tee /usr/local/bin/stop-ap.sh > /dev/null <<'SCRIPT'
 sudo systemctl stop hostapd
 sudo systemctl stop dnsmasq
 sudo systemctl stop burnernet-api.service 2>/dev/null || true
+if command -v iptables >/dev/null 2>&1; then
+    sudo iptables -D INPUT -i uap0 -p tcp --dport 853 -j REJECT --reject-with tcp-reset 2>/dev/null || true
+    sudo iptables -D FORWARD -i uap0 -p tcp --dport 853 -j REJECT --reject-with tcp-reset 2>/dev/null || true
+fi
+if command -v nft >/dev/null 2>&1; then
+    sudo nft delete table inet fakewifi 2>/dev/null || true
+fi
 sudo ip addr del 192.168.4.1/24 dev uap0 2>/dev/null || true
 sudo ip link set uap0 down 2>/dev/null || true
 sudo iw dev uap0 del 2>/dev/null || true
@@ -377,12 +408,18 @@ $HTTP["url"] =~ "^/(generate_204|gen_204|hotspot-detect\.html|library/test/succe
 
 # RFC 8908 captive portal API (Android 11+, iOS 14+)
 $HTTP["url"] == "/captive-portal-api.json" {
-    setenv.add-response-header = ( "Content-Type" => "application/captive+json" )
+    setenv.set-response-header = ( "Content-Type" => "application/captive+json" )
+}
+
+# RFC 8908 well-known path — some clients fetch here directly
+$HTTP["url"] =~ "^/\.well-known/captive-portal$" {
+    url.rewrite-once = ( "^/.*" => "/captive-portal-api.json" )
+    setenv.set-response-header = ( "Content-Type" => "application/captive+json" )
 }
 
 # Serve portal for any other hostname/path (google.com, etc.)
 # Probe paths above must be excluded or rewrite wins and returns 200 + index.html
-$HTTP["url"] !~ "^/(index\.html|generate_204|gen_204|hotspot-detect\.html|library/test/success\.html|ncsi\.txt|connecttest\.txt|captive-portal-api\.json|.*\.(html|css|js|jpg|jpeg|png|gif|ico|json|txt|pdf|svg|woff|woff2|ttf|eot|mp4|webm|map))" {
+$HTTP["url"] !~ "^/(\.well-known/captive-portal|index\.html|generate_204|gen_204|hotspot-detect\.html|library/test/success\.html|ncsi\.txt|connecttest\.txt|captive-portal-api\.json|.*\.(html|css|js|jpg|jpeg|png|gif|ico|json|txt|pdf|svg|woff|woff2|ttf|eot|mp4|webm|map))" {
     url.rewrite-once = (
         "^/(.*)" => "/index.html"
     )
