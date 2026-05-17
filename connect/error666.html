@@ -22,18 +22,19 @@
             padding: 2rem;
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            max-width: 500px;
+            max-width: 700px;
             width: 90%;
             text-align: center;
         }
         h1 {
             color: #189385;
             margin-bottom: 1rem;
+            font-size: 2.5rem;
         }
         p {
             color: #666;
             margin-bottom: 2rem;
-            font-size: 1.1rem;
+            font-size: 1.2rem;
         }
         .button-group {
             display: flex;
@@ -42,22 +43,18 @@
         }
         button {
             flex: 1;
-            padding: 0.75rem;
+            padding: 1rem 2rem;
             background: #189385;
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 1rem;
+            font-size: 1.4rem;
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         button:hover {
             background: #157a6d;
-        }
-        button.secondary {
-            background: #6c757d;
-        }
-        button.secondary:hover {
-            background: #5a6268;
         }
     </style>
 </head>
@@ -66,8 +63,7 @@
         <h1>Connection Failed</h1>
         <p>External internet connection could not be established. Would you like to connect to the local intranet instead?</p>
         <div class="button-group">
-            <button onclick="window.location.href='../intranet/home.html'">Yes</button>
-            <button class="secondary" onclick="window.location.href='/index.html'">No</button>
+            <button onclick="window.location.href='../intranet/home.html'">Connect me to Intraweb</button>
         </div>
     </div>
 </body>
