@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sparkle Pony Alert!!!</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 2rem;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #111;
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            background: #1a1a1a;
+            padding: 2rem;
+            border-radius: 8px;
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 1.5rem;
+            animation: flash 0.5s infinite;
+        }
+
+        @keyframes flash {
+            0%, 49% { color: #ff0000; }
+            50%, 100% { color: #ffffff; }
+        }
+
+        .description {
+            font-size: 1rem;
+            color: #ccc;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+            text-align: left;
+        }
+
+        .options-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            text-align: left;
+        }
+
+        .option {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            border: 2px solid #333;
+            border-radius: 4px;
+            cursor: pointer;
+            background: #222;
+            transition: all 0.2s;
+        }
+
+        .option:hover {
+            border-color: #555;
+            background: #2a2a2a;
+        }
+
+        .option:has(input:checked) {
+            border-color: #ff0000;
+            background: #2a1a1a;
+        }
+
+        .option input[type="checkbox"] {
+            margin-right: 0.75rem;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #ff0000;
+        }
+
+        .option label {
+            cursor: pointer;
+            flex: 1;
+            font-size: 0.95rem;
+        }
+
+        button {
+            padding: 0.75rem 2rem;
+            background: #cc0000;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.2s;
+        }
+
+        button:hover:not(:disabled) {
+            background: #aa0000;
+        }
+
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+
+        .feedback {
+            margin-top: 1rem;
+            font-size: 0.95rem;
+            font-weight: bold;
+            min-height: 1.5rem;
+            color: #ff4444;
+        }
+
+        .feedback.correct {
+            color: #44ff44;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Sparkle Pony Alert!!!</h1>
+        <p class="description">
+            We have detected that there could be sparkle ponies trying to gain access to BurnerNet.
+            We will need to do an additional security test. Please select which of the options below
+            are among the 10 principles.
+        </p>
+        <div class="options-list" id="optionsList"></div>
+        <button id="submitBtn" onclick="submitAnswer()" disabled>Submit</button>
+        <div class="feedback" id="feedback"></div>
+    </div>
+
+    <script>
+        const RIGHT = [
+            "Radical Inclusion",
+            "Decommodification",
+            "Gifting",
+            "Radical Self-reliance",
+            "Communal Effort",
+            "Radical Self-expression",
+            "Civic Responsibility",
+            "Leaving No Trace",
+            "Participation",
+            "Immediacy"
+        ];
+
+        const WRONG = [
+            "Totalitarianism",
+            "Radical Littering",
+            "Economic Exclusion",
+            "Bartering",
+            "Radical Individualism",
+            "Voyeurism",
+            "Judging Alternative Lifestyles",
+            "Demanding Free Water",
+            "Prioritizing Your Boss's Needs",
+            "Radical Conformity"
+        ];
+
+        let correctLabels = new Set();
+        let attempts = 0;
+
+        function shuffle(arr) {
+            return [...arr].sort(() => Math.random() - 0.5);
+        }
+
+        function pickRandom(arr, n) {
+            return shuffle(arr).slice(0, n);
+        }
+
+        function buildOptions() {
+            const rightPicked = pickRandom(RIGHT, 3);
+            const wrongPicked = pickRandom(WRONG, 6);
+            correctLabels = new Set(rightPicked);
+            return shuffle([...rightPicked, ...wrongPicked]);
+        }
+
+        function renderOptions() {
+            const list = document.getElementById('optionsList');
+            const options = buildOptions();
+            list.innerHTML = '';
+
+            options.forEach((label, i) => {
+                const div = document.createElement('div');
+                div.className = 'option';
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `opt-${i}`;
+                checkbox.value = label;
+                checkbox.addEventListener('change', updateSubmitButton);
+
+                const lbl = document.createElement('label');
+                lbl.htmlFor = `opt-${i}`;
+                lbl.textContent = label;
+
+                div.appendChild(checkbox);
+                div.appendChild(lbl);
+                list.appendChild(div);
+            });
+        }
+
+        function updateSubmitButton() {
+            const checked = document.querySelectorAll('#optionsList input:checked');
+            document.getElementById('submitBtn').disabled = checked.length === 0;
+        }
+
+        function getSelected() {
+            return [...document.querySelectorAll('#optionsList input:checked')].map(cb => cb.value);
+        }
+
+        function isCorrect(selected) {
+            if (selected.length !== correctLabels.size) return false;
+            return selected.every(s => correctLabels.has(s));
+        }
+
+        function clearSelections() {
+            document.querySelectorAll('#optionsList input:checked').forEach(cb => cb.checked = false);
+            updateSubmitButton();
+        }
+
+        function submitAnswer() {
+            const selected = getSelected();
+            const correct = isCorrect(selected);
+            attempts++;
+
+            const feedback = document.getElementById('feedback');
+            document.getElementById('submitBtn').disabled = true;
+
+            if (correct) {
+                feedback.className = 'feedback correct';
+                feedback.textContent = 'Correct, confirming you are not a sparkle pony!';
+                setTimeout(() => {
+                    window.location.href = 'go.html';
+                }, 1000);
+            } else if (attempts < 3) {
+                feedback.className = 'feedback';
+                feedback.textContent = 'Are you sure you are not a sparkle pony? Try again.';
+                clearSelections();
+                document.getElementById('submitBtn').disabled = false;
+            } else {
+                feedback.className = 'feedback';
+                feedback.textContent = 'Whatever, it sounds like you are a sparkle pony. Let\'s move on...';
+                setTimeout(() => {
+                    window.location.href = 'go.html';
+                }, 3000);
+            }
+        }
+
+        renderOptions();
+    </script>
+</body>
+</html>
