@@ -1,0 +1,13 @@
+[Unit]
+Description=Fake WiFi status LEDs (NeoPixel on GPIO18)
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/local/bin/fake-wifi-leds.py
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

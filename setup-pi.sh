@@ -11,15 +11,42 @@ if [ "$REAL_USER" = "root" ] || [ -z "$REAL_USER" ]; then
     REAL_USER=$(who am i | awk '{print $1}' 2>/dev/null || echo "pi")
 fi
 
-# Get the actual user (not root if running with sudo)
-REAL_USER=${SUDO_USER:-$USER}
-if [ "$REAL_USER" = "root" ] || [ -z "$REAL_USER" ]; then
-    REAL_USER=$(who am i | awk '{print $1}' 2>/dev/null || echo "pi")
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# Stop AP during setup so wlan0 stays manageable (safe to re-run setup)
+sudo systemctl disable fake-wifi-ap.service 2>/dev/null || true
+sudo systemctl stop fake-wifi-ap.service 2>/dev/null || true
+if [ -x /usr/local/bin/stop-ap.sh ]; then
+    sudo /usr/local/bin/stop-ap.sh 2>/dev/null || true
 fi
 
 # Install packages
 sudo apt update
-sudo apt install -y hostapd dnsmasq lighttpd
+sudo apt install -y hostapd dnsmasq lighttpd python3 python3-rpi-ws281x 2>/dev/null || \
+sudo apt install -y hostapd dnsmasq lighttpd python3
+# NeoPixel library (optional; LED service skips gracefully if missing)
+pip3 install --break-system-packages rpi-ws281x 2>/dev/null || pip3 install rpi-ws281x 2>/dev/null || true
+
+echo ""
+echo "=== Network status (before AP config) ==="
+if command -v nmcli >/dev/null 2>&1; then
+    nmcli dev status 2>/dev/null || true
+else
+    echo "nmcli not available yet."
+fi
+
+# AP physical interface config (not overwritten if you already edited it)
+sudo mkdir -p /etc/fake-wifi
+if [ -f "$SCRIPT_DIR/pi/ap.conf" ]; then
+    sudo cp -n "$SCRIPT_DIR/pi/ap.conf" /etc/fake-wifi/ap.conf
+else
+    echo "Warning: $SCRIPT_DIR/pi/ap.conf missing; using minimal /etc/fake-wifi/ap.conf"
+    sudo tee /etc/fake-wifi/ap.conf > /dev/null <<'DEFAULT_AP_CONF'
+AP_PHYS=auto
+AP_PHYS_PREFER=usb
+AP_PHYS_WAIT_SECS=15
+DEFAULT_AP_CONF
+fi
 
 # Copy your files
 sudo rm -rf /var/www/html/*
@@ -33,24 +60,32 @@ else
     }
 fi
 
-# Set up captive portal detection files
-if [ -f /home/$REAL_USER/fake-wifi-repo/captive-portal-files/hotspot-detect.html ]; then
-    sudo cp /home/$REAL_USER/fake-wifi-repo/captive-portal-files/hotspot-detect.html /var/www/html/hotspot-detect.html
+# Set up captive portal OS probe files (exact bodies where required)
+CAPTIVE_DIR="$SCRIPT_DIR/captive-portal-files"
+if [ -f "$CAPTIVE_DIR/hotspot-detect.html" ]; then
+    sudo cp "$CAPTIVE_DIR/hotspot-detect.html" /var/www/html/hotspot-detect.html
 else
     sudo sh -c 'echo "<!DOCTYPE html><html><head><meta http-equiv=\"refresh\" content=\"0; url=/\"><title>Success</title></head><body><script>window.location.href=\"/\";</script></body></html>" > /var/www/html/hotspot-detect.html'
 fi
-
-if [ -f /home/$REAL_USER/fake-wifi-repo/captive-portal-files/generate_204 ]; then
-    sudo cp /home/$REAL_USER/fake-wifi-repo/captive-portal-files/generate_204 /var/www/html/generate_204
+if [ -f "$CAPTIVE_DIR/ncsi.txt" ]; then
+    sudo cp "$CAPTIVE_DIR/ncsi.txt" /var/www/html/ncsi.txt
 else
-    sudo sh -c 'echo "HTTP/1.1 204 No Content" > /var/www/html/generate_204'
+    printf '%s' 'Microsoft NCSI' | sudo tee /var/www/html/ncsi.txt > /dev/null
 fi
-
-if [ -f /home/$REAL_USER/fake-wifi-repo/captive-portal-files/connecttest.txt ]; then
-    sudo cp /home/$REAL_USER/fake-wifi-repo/captive-portal-files/connecttest.txt /var/www/html/connecttest.txt
+if [ -f "$CAPTIVE_DIR/connecttest.txt" ]; then
+    sudo cp "$CAPTIVE_DIR/connecttest.txt" /var/www/html/connecttest.txt
 else
-    sudo sh -c 'echo "Microsoft Connect Test" > /var/www/html/connecttest.txt'
+    printf '%s' 'Microsoft Connect Test' | sudo tee /var/www/html/connecttest.txt > /dev/null
 fi
+if [ -f "$CAPTIVE_DIR/captive-portal-api.json" ]; then
+    sudo cp "$CAPTIVE_DIR/captive-portal-api.json" /var/www/html/captive-portal-api.json
+else
+    sudo tee /var/www/html/captive-portal-api.json > /dev/null <<'CAPTIVE_JSON'
+{"captive":true,"user-portal-url":"http://192.168.4.1/"}
+CAPTIVE_JSON
+fi
+# /generate_204 and /gen_204 are handled by lighttpd 302 redirects (not static files)
+sudo rm -f /var/www/html/generate_204 /var/www/html/gen_204
 
 # Fix permissions for web server
 sudo chown -R www-data:www-data /var/www/html/
@@ -62,7 +97,7 @@ sudo find /var/www/html -type f -exec chmod 644 {} \;
 sudo tee /etc/hostapd/hostapd.conf > /dev/null <<EOF
 interface=uap0
 driver=nl80211
-ssid=BurnerNet-Portal
+ssid=BURNERNET
 hw_mode=g
 channel=7
 wmm_enabled=0
@@ -82,10 +117,19 @@ interface=uap0
 dhcp-range=192.168.4.2,192.168.4.20,255.255.255.0,24h
 address=/#/192.168.4.1
 address=/burner-net.com/192.168.4.1
-# Captive portal detection domains
+# Captive portal detection (explicit; wildcard above catches the rest)
 address=/captive.apple.com/192.168.4.1
 address=/connectivitycheck.gstatic.com/192.168.4.1
+address=/connectivitycheck.android.com/192.168.4.1
+address=/clients3.google.com/192.168.4.1
+address=/clients4.google.com/192.168.4.1
+address=/www.google.com/192.168.4.1
+address=/play.googleapis.com/192.168.4.1
+address=/android.clients.google.com/192.168.4.1
 address=/www.msftconnecttest.com/192.168.4.1
+address=/nmcheck.gnome.org/192.168.4.1
+address=/network-test.debian.org/192.168.4.1
+address=/detectportal.firefox.com/192.168.4.1
 EOF
 
 # Create start/stop scripts
@@ -96,16 +140,103 @@ set -e
 LOG_FILE="/var/log/ap-start.log"
 mkdir -p /var/log
 
+# shellcheck source=/dev/null
+[ -f /etc/fake-wifi/ap.conf ] && . /etc/fake-wifi/ap.conf
+
+list_wlans() {
+    local i
+    for i in $(ls /sys/class/net 2>/dev/null | grep -E '^wlan[0-9]+$' | sort -V); do
+        echo "$i"
+    done
+}
+
+is_usb_wlan() {
+    local iface=$1 subs
+    [ -e "/sys/class/net/$iface" ] || return 1
+    subs=$(readlink -f "/sys/class/net/$iface/device/subsystem" 2>/dev/null) || return 1
+    [[ "$subs" == *usb* ]] && return 0
+    return 1
+}
+
+find_usb_wlan() {
+    local w
+    for w in $(list_wlans); do
+        is_usb_wlan "$w" && { echo "$w"; return 0; }
+    done
+    return 1
+}
+
+wait_for_usb_wlan() {
+    local w secs=${AP_PHYS_WAIT_SECS:-15} elapsed=0
+    if [ "$secs" -le 0 ] 2>/dev/null; then
+        find_usb_wlan
+        return $?
+    fi
+    while [ "$elapsed" -lt "$secs" ]; do
+        w=$(find_usb_wlan) && { echo "$w"; return 0; }
+        sleep 1
+        elapsed=$((elapsed + 1))
+    done
+    return 1
+}
+
+resolve_ap_phys() {
+    local w
+    if [ -n "${AP_PHYS:-}" ] && [ "$AP_PHYS" != "auto" ]; then
+        if [ -e "/sys/class/net/$AP_PHYS" ]; then
+            echo "$AP_PHYS"
+            return 0
+        fi
+        if is_usb_wlan "$AP_PHYS" 2>/dev/null || [ "$AP_PHYS" = "wlan1" ]; then
+            echo "ERROR: AP_PHYS=$AP_PHYS (USB radio) not found — check dongle and aic8800 driver" >&2
+        else
+            echo "ERROR: AP_PHYS=$AP_PHYS but /sys/class/net/$AP_PHYS not found" >&2
+        fi
+        return 1
+    fi
+    case "${AP_PHYS_PREFER:-usb}" in
+        usb)
+            w=$(wait_for_usb_wlan) && { echo "$w"; return 0; }
+            echo "No USB wlan after ${AP_PHYS_WAIT_SECS:-15}s wait; falling back to onboard radio" >&2
+            for w in $(list_wlans); do
+                if ! is_usb_wlan "$w"; then echo "$w"; return 0; fi
+            done
+            ;;
+        builtin)
+            for w in $(list_wlans); do
+                if ! is_usb_wlan "$w"; then echo "$w"; return 0; fi
+            done
+            ;;
+    esac
+    w=$(list_wlans | head -n1)
+    if [ -n "$w" ]; then
+        echo "$w"
+        return 0
+    fi
+    echo "ERROR: No wlan interface found to attach uap0" >&2
+    return 1
+}
+
 {
     echo "=========================================="
     echo "AP Start Log - $(date)"
     echo "=========================================="
     
+    PHY=$(resolve_ap_phys) || exit 1
+    sudo mkdir -p /run/fake-wifi
+    echo "$PHY" | sudo tee /run/fake-wifi/ap-phy > /dev/null
+    echo "Using physical Wi-Fi: $PHY (from /etc/fake-wifi/ap.conf)"
+    if is_usb_wlan "$PHY"; then
+        echo "Mode: dual-radio — AP on USB $PHY (external antenna); wlan0 free for home Wi-Fi / SSH"
+    else
+        echo "Mode: single-radio — AP on $PHY (STA+AP on same chip; USB dongle absent or wait timed out)"
+    fi
+
     echo "Creating virtual AP interface uap0..."
     # Remove uap0 if it exists
     sudo iw dev uap0 del 2>/dev/null || true
-    # Create uap0 as virtual AP interface from wlan0
-    sudo iw dev wlan0 interface add uap0 type __ap
+    # Create uap0 as virtual AP interface from the chosen phy (often wlan0; USB dongle if present)
+    sudo iw dev "$PHY" interface add uap0 type __ap
     
     echo "Unblocking WiFi (rfkill)..."
     sudo rfkill unblock wlan 2>/dev/null || true
@@ -135,8 +266,11 @@ mkdir -p /var/log
         exit 1
     fi
     
-    echo "Starting dnsmasq..."
-    sudo systemctl start dnsmasq
+    echo "(Re)starting dnsmasq so it binds to uap0..."
+    sudo systemctl restart dnsmasq
+
+    echo "Starting post board API..."
+    sudo systemctl start burnernet-api.service 2>/dev/null || true
     
     echo "Ensuring SSH is accessible..."
     sudo systemctl start ssh 2>/dev/null || sudo systemctl start sshd 2>/dev/null || true
@@ -149,13 +283,16 @@ mkdir -p /var/log
     
     echo ""
     echo "=========================================="
-    echo "AP started! SSID: BurnerNet-Portal"
+    echo "AP started! SSID: BURNERNET"
     echo ""
-    echo "wlan0 remains connected for SSH access!"
-    echo "uap0 is broadcasting the AP."
-    echo ""
-    echo "You can SSH via your regular WiFi (wlan0) OR"
-    echo "connect to 'BurnerNet-Portal' and SSH to j@192.168.4.1"
+    if is_usb_wlan "$PHY"; then
+        echo "uap0 on $PHY broadcasts BURNERNET (USB antenna)."
+        echo "wlan0: home Wi-Fi / SSH via NetworkManager."
+        echo "Or join BURNERNET and SSH to j@192.168.4.1"
+    else
+        echo "uap0 on $PHY broadcasts BURNERNET (onboard radio, STA+AP)."
+        echo "SSH via home Wi-Fi on $PHY OR join BURNERNET and SSH to j@192.168.4.1"
+    fi
     echo ""
     echo "To check status: sudo systemctl status hostapd"
     echo "To view logs: sudo journalctl -u hostapd -f"
@@ -169,11 +306,13 @@ sudo tee /usr/local/bin/stop-ap.sh > /dev/null <<'SCRIPT'
 #!/bin/bash
 sudo systemctl stop hostapd
 sudo systemctl stop dnsmasq
+sudo systemctl stop burnernet-api.service 2>/dev/null || true
 sudo ip addr del 192.168.4.1/24 dev uap0 2>/dev/null || true
 sudo ip link set uap0 down 2>/dev/null || true
 sudo iw dev uap0 del 2>/dev/null || true
+sudo rm -f /run/fake-wifi/ap-phy 2>/dev/null || true
 echo "AP stopped. Virtual interface uap0 removed."
-echo "wlan0 remains connected for SSH access."
+echo "Physical wlan is unchanged (still up if NetworkManager/wpa kept it)."
 SCRIPT
 
 sudo chmod +x /usr/local/bin/start-ap.sh /usr/local/bin/stop-ap.sh
@@ -196,31 +335,99 @@ SCRIPT
 
 sudo chmod +x /usr/local/bin/view-ap-log.sh
 
-# Unmask hostapd (in case it was masked) but don't enable auto-start
+# Don't auto-start hostapd/dnsmasq on boot — start-ap.sh owns their lifecycle
+# (apt installs both as enabled by default; disable so they don't bind before uap0 exists)
 sudo systemctl unmask hostapd 2>/dev/null || true
 sudo systemctl disable hostapd
 sudo systemctl disable dnsmasq
+sudo systemctl stop dnsmasq 2>/dev/null || true
+sudo systemctl stop hostapd 2>/dev/null || true
 
 # Configure lighttpd to redirect all requests to portal
 # Backup original config
 sudo cp /etc/lighttpd/lighttpd.conf /etc/lighttpd/lighttpd.conf.backup 2>/dev/null || true
 
-# Add URL rewriting to redirect all non-file requests to index.html
-if ! grep -q "captive-portal" /etc/lighttpd/lighttpd.conf; then
-    sudo tee -a /etc/lighttpd/lighttpd.conf > /dev/null <<'LIGHTTPD_CONFIG'
+# Captive portal: drop-in conf (always refreshed) + remove legacy inline block
+# Strip legacy inline captive rules (including fragments left by partial sed deletes)
+if grep -qE 'generate_204|Captive portal configuration|url\.redirect-code' /etc/lighttpd/lighttpd.conf; then
+    sudo awk '
+        /^# Captive portal configuration/ { skip=1; next }
+        skip && /^# Proxy \/api\// { skip=0 }
+        skip && /^server\.modules \+= \( "mod_proxy" \)/ { skip=0 }
+        skip { next }
+        /url\.redirect-code/ { skip=1; next }
+        skip && /^}$/ { skip=0; next }
+        /url\.rewrite-once/ && /index\.html/ { skip=1; next }
+        skip && /^}$/ { skip=0; next }
+        { print }
+    ' /etc/lighttpd/lighttpd.conf | sudo tee /etc/lighttpd/lighttpd.conf.tmp > /dev/null
+    sudo mv /etc/lighttpd/lighttpd.conf.tmp /etc/lighttpd/lighttpd.conf
+fi
+sudo tee /etc/lighttpd/conf-available/fake-wifi-captive.conf > /dev/null <<'LIGHTTPD_CAPTIVE'
+# Captive portal configuration (fake-wifi)
+server.modules += ( "mod_redirect", "mod_rewrite", "mod_setenv" )
 
-# Captive portal configuration
-server.modules += ( "mod_rewrite" )
+# OS captive probes — one url.redirect block (lighttpd rejects duplicate url.redirect keys)
+$HTTP["url"] =~ "^/(generate_204|gen_204|hotspot-detect\.html|library/test/success\.html)$" {
+    url.redirect = (
+        "^/(generate_204|gen_204|hotspot-detect\.html|library/test/success\.html)$" => "http://192.168.4.1/"
+    )
+    url.redirect-code = 302
+}
 
-# Serve portal for any hostname (google.com, facebook.com, etc. all get redirected)
-# Only redirect if the file doesn't exist
-$HTTP["url"] !~ "^/(index\.html|.*\.(html|css|js|jpg|jpeg|png|gif|ico|json|txt|pdf|svg|woff|woff2|ttf|eot|mp4|webm|map))" {
-    url.rewrite-once = ( 
+# RFC 8908 captive portal API (Android 11+, iOS 14+)
+$HTTP["url"] == "/captive-portal-api.json" {
+    setenv.add-response-header = ( "Content-Type" => "application/captive+json" )
+}
+
+# Serve portal for any other hostname/path (google.com, etc.)
+# Probe paths above must be excluded or rewrite wins and returns 200 + index.html
+$HTTP["url"] !~ "^/(index\.html|generate_204|gen_204|hotspot-detect\.html|library/test/success\.html|ncsi\.txt|connecttest\.txt|captive-portal-api\.json|.*\.(html|css|js|jpg|jpeg|png|gif|ico|json|txt|pdf|svg|woff|woff2|ttf|eot|mp4|webm|map))" {
+    url.rewrite-once = (
         "^/(.*)" => "/index.html"
     )
 }
-LIGHTTPD_CONFIG
+LIGHTTPD_CAPTIVE
+sudo ln -sf ../conf-available/fake-wifi-captive.conf /etc/lighttpd/conf-enabled/90-fake-wifi-captive.conf
+sudo lighttpd -tt -f /etc/lighttpd/lighttpd.conf
+
+# Add proxy pass for the post board API
+if ! grep -q "mod_proxy" /etc/lighttpd/lighttpd.conf; then
+    sudo tee -a /etc/lighttpd/lighttpd.conf > /dev/null <<'LIGHTTPD_PROXY'
+
+# Proxy /api/* to the Python post board API on port 3000
+server.modules += ( "mod_proxy" )
+$HTTP["url"] =~ "^/api/" {
+    proxy.server = ( "" => ( ( "host" => "127.0.0.1", "port" => 3000 ) ) )
+}
+LIGHTTPD_PROXY
 fi
+
+# Create data directory for the post board
+sudo mkdir -p /var/lib/burnernet
+sudo chown www-data:www-data /var/lib/burnernet
+
+# Set up the post board API as a systemd service
+sudo tee /etc/systemd/system/burnernet-api.service > /dev/null <<SERVICE
+[Unit]
+Description=BurnerNet Post Board API
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /var/www/html/api/server.py
+Restart=always
+RestartSec=3
+User=www-data
+Group=www-data
+
+[Install]
+WantedBy=multi-user.target
+SERVICE
+
+sudo systemctl daemon-reload
+sudo systemctl enable burnernet-api.service
+sudo systemctl start burnernet-api.service
 
 # Enable lighttpd (web server always runs)
 sudo systemctl enable lighttpd
@@ -238,7 +445,7 @@ fi
 # Create systemd service for auto-starting AP on boot
 sudo tee /etc/systemd/system/fake-wifi-ap.service > /dev/null <<'SERVICE'
 [Unit]
-Description=Fake WiFi Access Point (BurnerNet-Portal)
+Description=Fake WiFi Access Point (BURNERNET)
 After=network-online.target networking.service
 Wants=network-online.target
 
@@ -254,23 +461,73 @@ StandardError=journal
 WantedBy=multi-user.target
 SERVICE
 
-# Enable the service to start on boot
+# Status LEDs (GPIO18, up to 4 pixels)
+if [ -f "$SCRIPT_DIR/pi/leds.py" ]; then
+    sudo cp "$SCRIPT_DIR/pi/leds.py" /usr/local/bin/fake-wifi-leds.py
+    sudo chmod +x /usr/local/bin/fake-wifi-leds.py
+fi
+if [ -f "$SCRIPT_DIR/pi/fake-wifi-leds.service" ]; then
+    sudo cp "$SCRIPT_DIR/pi/fake-wifi-leds.service" /etc/systemd/system/fake-wifi-leds.service
+    sudo systemctl daemon-reload
+    sudo systemctl enable fake-wifi-leds.service
+    sudo systemctl restart fake-wifi-leds.service 2>/dev/null || true
+fi
+
+# Install AP service unit (not enabled here — verify wlan0 uplink first)
 sudo systemctl daemon-reload
-sudo systemctl enable fake-wifi-ap.service
+
+# Keep NetworkManager on wlan0; only wlan1 (USB AP radio) is unmanaged
+sudo mkdir -p /etc/NetworkManager/conf.d
+sudo tee /etc/NetworkManager/conf.d/99-fake-wifi-usb-unmanaged.conf > /dev/null <<'NM_CONF'
+[keyfile]
+unmanaged-devices=interface-name:wlan1
+NM_CONF
+echo ""
+echo "NetworkManager: wrote 99-fake-wifi-usb-unmanaged.conf (wlan1 only)."
+echo "  wlan0 stays managed for home Wi-Fi / SSH."
+echo "  NM was NOT reloaded during setup (avoids dropping your SSH session)."
+echo "  After reboot, or if wlan1 still shows as managed: sudo systemctl reload NetworkManager"
+
+echo ""
+echo "=== Network status (post-setup) ==="
+if command -v nmcli >/dev/null 2>&1; then
+    nmcli dev status 2>/dev/null || true
+    if nmcli -t -f DEVICE,STATE dev 2>/dev/null | grep -q '^wlan0:unmanaged'; then
+        echo ""
+        echo "WARNING: wlan0 is unmanaged. Recovery:"
+        echo "  sudo nmcli dev set wlan0 managed yes"
+        echo "  sudo ip link set wlan0 up"
+        echo "  sudo nmcli dev wifi connect YOUR_SSID password 'YOUR_PASSWORD'"
+    fi
+else
+    echo "nmcli not available; skip device check."
+fi
+ip -br link 2>/dev/null | grep -E 'wlan|uap' || true
 
 echo ""
 echo "=========================================="
 echo "Setup complete!"
 echo ""
-echo "To start AP: sudo start-ap.sh"
-echo "To stop AP:  sudo stop-ap.sh"
-echo "To view logs: view-ap-log.sh"
+echo "Safe boot sequence:"
+echo "  1. Confirm wlan0 is connected to home Wi-Fi (nmcli dev status)"
+echo "  2. Test AP once: sudo start-ap.sh && view-ap-log.sh"
+echo "  3. Enable AP on boot: sudo systemctl enable --now fake-wifi-ap.service"
 echo ""
-echo "✓ Auto-start enabled: AP will start on boot"
-echo "  (waits for network, so wlan0 connects to 'pacsun' first)"
+echo "To start/stop AP without enabling boot:"
+echo "  sudo start-ap.sh"
+echo "  sudo stop-ap.sh"
+echo "  view-ap-log.sh"
 echo ""
-echo "Note: wlan0 stays connected for SSH access!"
-echo "      uap0 broadcasts 'BurnerNet-Portal' AP"
+echo "Two modes (when AP runs):"
+echo "  USB dongle present: wlan0 = home Wi-Fi / SSH, wlan1 = BURNERNET AP (uap0)"
+echo "  No USB dongle:      wlan0 = STA+AP on one radio (fallback)"
 echo ""
-echo "Logs are saved to: /var/log/ap-start.log"
+echo "Config: sudo nano /etc/fake-wifi/ap.conf"
+echo "  AP_PHYS=auto, AP_PHYS_PREFER=usb, AP_PHYS_WAIT_SECS=15"
+echo ""
+echo "Logs: /var/log/ap-start.log"
+echo ""
+echo "Status LEDs: GPIO18, 4 pixels (wire 1 now, chain more later)"
+echo "  Rainbow = BURNERNET healthy; LED0 red-red flash = backup radio"
+echo "  Yellow pulse = services restarting; Red pulse = AP down"
 echo "=========================================="
