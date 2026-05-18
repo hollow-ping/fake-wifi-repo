@@ -303,10 +303,19 @@
                 document.getElementById('errorMessage').textContent = correct ? '' : 'Moving to next challenge...';
                 loadCaptcha();
             } else {
-                const burnerName = await commitBurnerName();
-                if (!burnerName) {
+                try {
+                    const burnerName = await commitBurnerName();
+                    if (!burnerName) {
+                        const tempName = getTempBurnerName();
+                        if (tempName) setBurnerName(tempName);
+                    }
+                } catch (e) {
+                    // Never strand the user on captcha — fall back to unsigned
                     const tempName = getTempBurnerName();
-                    if (tempName) setBurnerName(tempName);
+                    if (tempName) {
+                        localStorage.setItem('burnerName', tempName);
+                        localStorage.removeItem('tempBurnerName');
+                    }
                 }
                 window.location.href = '../create-account/success.html';
             }

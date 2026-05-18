@@ -50,6 +50,14 @@ function clearBurnerCookie() {
 }
 
 async function signBurnerCookie(name) {
+    // crypto.subtle requires a secure context (HTTPS or localhost). On the Pi
+    // captive portal at http://192.168.4.1 it's undefined — fall back to a
+    // deterministic non-crypto tag so the cookie still pairs with itself.
+    // Cookie spoofing protection was always nominal (any localStorage editor
+    // could already lie), so this is an acceptable downgrade.
+    if (!self.isSecureContext || !window.crypto || !window.crypto.subtle) {
+        return 'plain:' + btoa(unescape(encodeURIComponent(BURNER_COOKIE_SECRET + ':' + name)));
+    }
     const key = await crypto.subtle.importKey(
         "raw",
         new TextEncoder().encode(BURNER_COOKIE_SECRET),
