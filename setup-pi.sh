@@ -26,14 +26,17 @@ sudo apt install -y hostapd dnsmasq lighttpd python3 iptables
 
 # NeoPixel library: apt on Bookworm/Pi OS; pip on trixie where python3-rpi-ws281x is absent
 install_rpi_ws281x() {
-    if python3 -c 'from rpi_ws281x import PixelStrip' 2>/dev/null; then
-        echo "rpi_ws281x: already installed."
+    # Verify as root — the LED systemd service runs as root, so root's
+    # site-packages is what matters. A user-level pip install (~/.local)
+    # would import fine for you but fail under systemd.
+    if sudo python3 -c 'from rpi_ws281x import PixelStrip' 2>/dev/null; then
+        echo "rpi_ws281x: already installed for root."
         return 0
     fi
     if apt-cache show python3-rpi-ws281x &>/dev/null; then
         echo "Installing python3-rpi-ws281x from apt..."
         if sudo apt install -y python3-rpi-ws281x &&
-           python3 -c 'from rpi_ws281x import PixelStrip' 2>/dev/null; then
+           sudo python3 -c 'from rpi_ws281x import PixelStrip' 2>/dev/null; then
             return 0
         fi
         echo "apt install python3-rpi-ws281x failed; trying pip..."
@@ -41,13 +44,14 @@ install_rpi_ws281x() {
         echo "python3-rpi-ws281x not in apt (common on Debian trixie) — installing via pip..."
     fi
     sudo apt install -y python3-dev python3-pip build-essential
-    if pip3 install --break-system-packages rpi-ws281x 2>/dev/null ||
-       pip3 install rpi-ws281x 2>/dev/null; then
-        if python3 -c 'from rpi_ws281x import PixelStrip' 2>/dev/null; then
+    # Must be sudo pip so it installs into root's site-packages, not ~/.local
+    if sudo pip3 install --break-system-packages rpi-ws281x 2>/dev/null ||
+       sudo pip3 install rpi-ws281x 2>/dev/null; then
+        if sudo python3 -c 'from rpi_ws281x import PixelStrip' 2>/dev/null; then
             return 0
         fi
     fi
-    echo "WARNING: could not install rpi_ws281x — status LED service will not be enabled."
+    echo "WARNING: could not install rpi_ws281x for root — status LED service will not be enabled."
     return 1
 }
 
