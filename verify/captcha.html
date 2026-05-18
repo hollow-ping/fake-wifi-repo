@@ -300,7 +300,7 @@
             // Advance to next captcha or finish
             currentCaptchaIndex++;
             if (currentCaptchaIndex < 2) {
-                document.getElementById('errorMessage').textContent = '';
+                document.getElementById('errorMessage').textContent = correct ? '' : 'Moving to next challenge...';
                 loadCaptcha();
             } else {
                 const burnerName = await commitBurnerName();

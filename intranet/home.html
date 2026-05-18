@@ -92,70 +92,23 @@
             padding: 1rem;
             margin-bottom: 1rem;
         }
-        .post-header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 0.5rem;
-            font-size: 0.9rem;
-            opacity: 0.8;
-        }
-        .post-author {
-            color: #39ff14;
+        .post-author-label {
+            font-size: 0.85rem;
             font-weight: bold;
+            text-align: left;
+            margin-bottom: 0.4rem;
+            opacity: 0.9;
         }
         .post-content {
-            margin: 0.5rem 0;
+            margin: 0 0 0.5rem 0;
             line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
         }
-        .post-actions {
-            margin-top: 0.5rem;
-        }
-        .reply-btn {
-            background: none;
-            border: 1px solid #39ff14;
-            color: #39ff14;
-            padding: 0.25rem 0.5rem;
-            cursor: pointer;
-            font-family: 'Courier New', monospace;
+        .post-meta {
+            margin-top: 0.4rem;
             font-size: 0.8rem;
-        }
-        .reply-btn:hover {
-            background: rgba(57, 255, 20, 0.2);
-        }
-        .replies {
-            margin-top: 1rem;
-            margin-left: 2rem;
-            border-left: 2px solid #39ff14;
-            padding-left: 1rem;
-        }
-        .reply {
-            margin-bottom: 0.5rem;
-            padding: 0.5rem;
-            background: rgba(57, 255, 20, 0.03);
-        }
-        .reply-form {
-            margin-top: 0.5rem;
-        }
-        .reply-form textarea {
-            width: 100%;
-            min-height: 60px;
-            background: #0d2818;
-            border: 1px solid #39ff14;
-            color: #39ff14;
-            font-family: 'Courier New', monospace;
-            padding: 0.5rem;
-            box-sizing: border-box;
-            font-size: 0.9rem;
-        }
-        .reply-form button {
-            margin-top: 0.25rem;
-            padding: 0.25rem 0.5rem;
-            background: rgba(57, 255, 20, 0.1);
-            border: 1px solid #39ff14;
-            color: #39ff14;
-            cursor: pointer;
-            font-family: 'Courier New', monospace;
-            font-size: 0.8rem;
+            opacity: 0.7;
         }
         .empty-state {
             text-align: center;
@@ -175,10 +128,11 @@
         <div class="message-board">
             <div class="post-form">
                 <h2 style="margin-top: 0;">New Post</h2>
+                <div class="post-author-label" id="postingAs">[Playa Name]:</div>
                 <textarea id="postText" placeholder="What's on your mind?"></textarea>
                 <button onclick="createPost()">Post</button>
             </div>
-            
+
             <div class="posts" id="posts">
                 <div class="empty-state">No posts yet. Be the first to post!</div>
             </div>
@@ -187,151 +141,102 @@
     
     <script src="../js/main.js"></script>
     <script>
-        // Load posts from localStorage (safe DOM construction, no innerHTML of user data)
-        function loadPosts() {
-            const posts = JSON.parse(localStorage.getItem('intranetPosts') || '[]');
+        function formatDate(ts) {
+            const d = new Date(ts);
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            const yy = String(d.getFullYear()).slice(-2);
+            let h = d.getHours();
+            const m = String(d.getMinutes()).padStart(2, '0');
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            h = h % 12; if (h === 0) h = 12;
+            return `${mm}/${dd}/${yy} ${h}:${m} ${ampm}`;
+        }
+        function metaLine(ts) {
+            return `${formatDate(ts)} -- PDF 2026`;
+        }
+
+        async function fetchPosts() {
+            try {
+                const r = await fetch('/api/posts', { cache: 'no-store' });
+                if (!r.ok) throw new Error('bad status');
+                const data = await r.json();
+                return Array.isArray(data) ? data : [];
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function renderPosts(allPosts) {
             const postsContainer = document.getElementById('posts');
-            
-            if (posts.length === 0) {
-                postsContainer.innerHTML = '';
+            postsContainer.innerHTML = '';
+
+            if (allPosts === null) {
+                const err = document.createElement('div');
+                err.className = 'empty-state';
+                err.textContent = "Couldn't reach the board. Try again in a sec.";
+                postsContainer.appendChild(err);
+                return;
+            }
+
+            const visible = allPosts
+                .filter(p => !p.archived)
+                .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+            if (visible.length === 0) {
                 const empty = document.createElement('div');
                 empty.className = 'empty-state';
                 empty.textContent = 'No posts yet. Be the first to post!';
                 postsContainer.appendChild(empty);
                 return;
             }
-            
-            postsContainer.innerHTML = '';
-            posts.forEach((post, index) => {
+
+            visible.forEach((post) => {
                 const postDiv = document.createElement('div');
                 postDiv.className = 'post';
 
-                const header = document.createElement('div');
-                header.className = 'post-header';
-                const authorSpan = document.createElement('span');
-                authorSpan.className = 'post-author';
-                authorSpan.textContent = post.author;
-                const timeSpan = document.createElement('span');
-                timeSpan.textContent = new Date(post.timestamp).toLocaleString();
-                header.appendChild(authorSpan);
-                header.appendChild(timeSpan);
+                const authorLabel = document.createElement('div');
+                authorLabel.className = 'post-author-label';
+                authorLabel.textContent = `${post.author}:`;
 
                 const contentDiv = document.createElement('div');
                 contentDiv.className = 'post-content';
                 contentDiv.textContent = post.content;
 
-                const actions = document.createElement('div');
-                actions.className = 'post-actions';
-                const replyBtn = document.createElement('button');
-                replyBtn.className = 'reply-btn';
-                replyBtn.textContent = 'Reply';
-                replyBtn.onclick = () => toggleReply(index);
-                actions.appendChild(replyBtn);
+                const metaDiv = document.createElement('div');
+                metaDiv.className = 'post-meta';
+                metaDiv.textContent = metaLine(post.timestamp);
 
-                const replyForm = document.createElement('div');
-                replyForm.className = 'reply-form';
-                replyForm.id = `replyForm-${index}`;
-                replyForm.style.display = 'none';
-                const replyTextarea = document.createElement('textarea');
-                replyTextarea.id = `replyText-${index}`;
-                replyTextarea.placeholder = 'Write a reply...';
-                const replySubmitBtn = document.createElement('button');
-                replySubmitBtn.textContent = 'Reply';
-                replySubmitBtn.onclick = () => addReply(index);
-                replyForm.appendChild(replyTextarea);
-                replyForm.appendChild(replySubmitBtn);
-
-                postDiv.appendChild(header);
+                postDiv.appendChild(authorLabel);
                 postDiv.appendChild(contentDiv);
-                postDiv.appendChild(actions);
-                postDiv.appendChild(replyForm);
-
-                if (post.replies && post.replies.length > 0) {
-                    const repliesDiv = document.createElement('div');
-                    repliesDiv.className = 'replies';
-                    post.replies.forEach(reply => {
-                        const replyEl = document.createElement('div');
-                        replyEl.className = 'reply';
-                        const replyHeader = document.createElement('div');
-                        replyHeader.className = 'post-header';
-                        const replyAuthor = document.createElement('span');
-                        replyAuthor.className = 'post-author';
-                        replyAuthor.textContent = reply.author;
-                        const replyTime = document.createElement('span');
-                        replyTime.textContent = new Date(reply.timestamp).toLocaleString();
-                        replyHeader.appendChild(replyAuthor);
-                        replyHeader.appendChild(replyTime);
-                        const replyContent = document.createElement('div');
-                        replyContent.className = 'post-content';
-                        replyContent.textContent = reply.content;
-                        replyEl.appendChild(replyHeader);
-                        replyEl.appendChild(replyContent);
-                        repliesDiv.appendChild(replyEl);
-                    });
-                    postDiv.appendChild(repliesDiv);
-                }
-
+                postDiv.appendChild(metaDiv);
                 postsContainer.appendChild(postDiv);
             });
         }
-        
-        // Create a new post
-        function createPost() {
+
+        async function loadPosts() {
+            const data = await fetchPosts();
+            renderPosts(data);
+        }
+
+        async function createPost() {
             const textarea = document.getElementById('postText');
             const content = textarea.value.trim();
-            
-            if (!content) {
-                return;
+            if (!content) return;
+            try {
+                const r = await fetch('/api/posts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ author: getBurnerName(), content })
+                });
+                if (!r.ok) throw new Error('bad status');
+                textarea.value = '';
+                loadPosts();
+            } catch (e) {
+                alert("Couldn't post. Try again in a sec.");
             }
-            
-            const posts = JSON.parse(localStorage.getItem('intranetPosts') || '[]');
-            const newPost = {
-                author: getBurnerName(),
-                content: content,
-                timestamp: Date.now(),
-                replies: []
-            };
-            
-            posts.unshift(newPost);
-            localStorage.setItem('intranetPosts', JSON.stringify(posts));
-            
-            textarea.value = '';
-            loadPosts();
         }
-        
-        // Toggle reply form
-        function toggleReply(postIndex) {
-            const replyForm = document.getElementById(`replyForm-${postIndex}`);
-            replyForm.style.display = replyForm.style.display === 'none' ? 'block' : 'none';
-        }
-        
-        // Add a reply
-        function addReply(postIndex) {
-            const textarea = document.getElementById(`replyText-${postIndex}`);
-            const content = textarea.value.trim();
-            
-            if (!content) {
-                return;
-            }
-            
-            const posts = JSON.parse(localStorage.getItem('intranetPosts') || '[]');
-            if (!posts[postIndex].replies) {
-                posts[postIndex].replies = [];
-            }
-            
-            posts[postIndex].replies.push({
-                author: getBurnerName(),
-                content: content,
-                timestamp: Date.now()
-            });
-            
-            localStorage.setItem('intranetPosts', JSON.stringify(posts));
-            
-            textarea.value = '';
-            loadPosts();
-        }
-        
-        // Initialize: verify signed cookie so spoofed burnerName is rejected
+
         (async function init() {
             const valid = await verifyBurnerCookie();
             if (!valid) {
@@ -339,8 +244,11 @@
                 window.location.href = '../index.html';
                 return;
             }
-            document.getElementById('welcome').textContent = `Welcome, ${getBurnerName()}`;
+            const name = getBurnerName();
+            document.getElementById('welcome').textContent = `Welcome, ${name}`;
+            document.getElementById('postingAs').textContent = `${name}:`;
             loadPosts();
+            setInterval(loadPosts, 5000);
         })();
 
         document.getElementById('postText').addEventListener('keydown', function(e) {

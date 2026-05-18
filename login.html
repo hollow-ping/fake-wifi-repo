@@ -43,6 +43,7 @@
             border: 1px solid #ddd;
             border-radius: 4px;
             box-sizing: border-box;
+            font-size: 16px;
         }
         button {
             width: 100%;
@@ -87,11 +88,11 @@
     <div class="container">
         <h1>Login</h1>
         <form id="loginForm">
-            <label>Burner Name:</label>
-            <input type="text" id="burnerName" required>
+            <label>Playa Name:</label>
+            <input type="text" id="burnerName" autocomplete="off" data-1p-ignore="true" data-lpignore="true" data-form-type="other" required>
             
             <label>Password:</label>
-            <input type="password" id="password" placeholder="••••••••" required>
+            <input type="password" id="password" placeholder="••••••••" autocomplete="off" data-1p-ignore="true" data-lpignore="true" data-form-type="other" required>
             
             <button type="submit" id="loginBtn">Login</button>
             <div id="formError" class="error-message"></div>
@@ -111,7 +112,10 @@
             const storedName = localStorage.getItem('burnerName');
             if (valid && storedName) {
                 burnerNameEl.value = storedName;
-                passwordEl.placeholder = '••••••••';
+                passwordEl.value = '********';
+                setTimeout(() => {
+                    window.location.href = 'connect/go.html';
+                }, 500);
             }
         })();
 
@@ -128,7 +132,7 @@
             passwordEl.classList.remove('error');
 
             if (!burnerName || !password) {
-                formError.textContent = 'Please enter both burner name and password';
+                formError.textContent = 'Please enter both Playa Name and password';
                 if (!burnerName) burnerNameEl.classList.add('error');
                 if (!password) passwordEl.classList.add('error');
                 return;

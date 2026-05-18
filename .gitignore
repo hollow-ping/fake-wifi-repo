@@ -16,3 +16,9 @@ Thumbs.db
 *.tmp
 *.temp
 
+# Claude Code worktrees / launch config
+.claude/
+
+# Local dev API store (server.js writes here)
+.api-posts.json
+

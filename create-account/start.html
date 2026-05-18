@@ -45,6 +45,7 @@
             border: 1px solid #ddd;
             border-radius: 4px;
             box-sizing: border-box;
+            font-size: 16px;
         }
         .status-icon {
             position: absolute;
@@ -215,7 +216,7 @@
     <div class="container">
         <h1>Create Account</h1>
         <form id="createForm">
-            <label>Burner Name:</label>
+            <label>Playa Name:</label>
             <div class="input-wrapper">
                 <input type="text" id="burnerName" required>
                 <div id="statusIcon" class="status-icon" style="display: none;"></div>
@@ -239,19 +240,16 @@
         let selectedQuestions = [];
         let allQuestions = [];
 
-        // Count numbers in a string
-        function countNumbers(str) {
-            return (str.match(/\d/g) || []).length;
+        // Check if name ends with 2+ digits
+        function endsWithTwoDigits(str) {
+            return /\d{2,}$/.test(str);
         }
 
-        // Generate suggested name with random numbers
+        // Strip trailing digits and append 2 random ones
         function generateSuggestion(baseName) {
-            const numCount = 5 + Math.floor(Math.random() * 3); // 5-7 numbers
-            let numbers = '';
-            for (let i = 0; i < numCount; i++) {
-                numbers += Math.floor(Math.random() * 10);
-            }
-            return baseName + numbers;
+            const base = baseName.replace(/\d+$/, '');
+            const digits = String(Math.floor(Math.random() * 90) + 10); // 10-99
+            return base + digits;
         }
 
         // Check username availability
@@ -269,21 +267,20 @@
 
             // Simulate API check delay
             setTimeout(() => {
-                const numCount = countNumbers(name);
-                const isAvailable = numCount >= 4;
+                const isAvailable = endsWithTwoDigits(name);
 
                 if (isAvailable) {
                     // Available
                     statusIcon.innerHTML = '<span class="check-icon">✓</span>';
                     statusMessage.className = 'status-message status-available';
-                    statusMessage.textContent = 'Burner name is available';
+                    statusMessage.textContent = 'Playa Name is available';
                 } else {
                     // Taken - render suggestion via DOM to avoid XSS
                     statusIcon.innerHTML = '<span class="x-icon">✗</span>';
                     statusMessage.className = 'status-message status-taken';
                     const suggestion = generateSuggestion(name);
                     statusMessage.textContent = '';
-                    statusMessage.appendChild(document.createTextNode('Sorry that Burner name is not unique.'));
+                    statusMessage.appendChild(document.createTextNode('Sorry that Playa Name is not unique.'));
                     statusMessage.appendChild(document.createElement('br'));
                     statusMessage.appendChild(document.createTextNode('Suggestion: '));
                     const suggestionSpan = document.createElement('span');
@@ -506,9 +503,8 @@
                 burnerNameInput.classList.add('error');
                 hasErrors = true;
             } else {
-                // Check if name is available (has 4+ numbers)
-                const numCount = countNumbers(burnerName);
-                if (numCount < 4) {
+                // Check if name ends with exactly 2 digits
+                if (!endsWithTwoDigits(burnerName)) {
                     document.getElementById('formError').textContent = 'Please review your answers and try again';
                     burnerNameInput.classList.add('error');
                     hasErrors = true;

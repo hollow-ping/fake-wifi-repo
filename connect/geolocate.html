@@ -3,100 +3,184 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Satellite Connection Debug</title>
+    <title>Locating Satellite...</title>
     <style>
-        /* Terminal/code editor theme - Dark background */
         body {
             margin: 0;
             padding: 0;
             font-family: 'Courier New', monospace;
-            background: #1e1e1e;
-            color: #d4d4d4;
+            background: #050a14;
+            color: #9fffb0;
             min-height: 100vh;
-            padding: 2rem;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1.5rem 1rem;
+            box-sizing: border-box;
         }
         h1 {
-            color: #569cd6;
-            margin-bottom: 1.5rem;
+            color: #5be37e;
+            margin: 0 0 0.25rem;
+            font-size: 1.25rem;
+            letter-spacing: 0.1em;
         }
-        .code-editor {
-            background: #252526;
-            border: 1px solid #3e3e42;
-            border-radius: 5px;
-            padding: 1rem;
-            margin: 1rem 0;
+        .subtitle {
+            color: #4d8a5a;
+            font-size: 0.8rem;
+            margin-bottom: 1.25rem;
+            letter-spacing: 0.05em;
         }
-        .code-line {
-            margin: 0.5rem 0;
-            font-size: 0.9rem;
+        .radar {
+            width: 260px;
+            height: 260px;
+            position: relative;
+            margin-bottom: 1.25rem;
         }
-        .error-line {
-            background: rgba(255, 0, 0, 0.2);
-            border-left: 3px solid #f48771;
-            padding-left: 0.5rem;
-            color: #f48771;
+        .radar svg {
+            width: 100%;
+            height: 100%;
         }
-        .keyword {
-            color: #569cd6;
+        .ring {
+            fill: none;
+            stroke: rgba(91, 227, 126, 0.25);
+            stroke-width: 1;
         }
-        .string {
-            color: #ce9178;
+        .crosshair {
+            stroke: rgba(91, 227, 126, 0.2);
+            stroke-width: 1;
         }
-        .number {
-            color: #b5cea8;
+        .sweep {
+            transform-origin: 50% 50%;
+            animation: spin 3s linear infinite;
         }
-        button {
-            padding: 0.75rem 1.5rem;
-            background: #0e639c;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            margin: 0.5rem 0.5rem 0.5rem 0;
-            font-family: 'Courier New', monospace;
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
         }
-        button:hover {
-            background: #1177bb;
+        .blip {
+            fill: #5be37e;
+            opacity: 0;
+            animation: blip-fade 3s linear infinite;
+        }
+        .blip.b1 { animation-delay: 0.8s; }
+        .blip.b2 { animation-delay: 1.6s; }
+        .blip.b3 { animation-delay: 2.4s; }
+        @keyframes blip-fade {
+            0%   { opacity: 0; r: 2; }
+            5%   { opacity: 1; r: 4; }
+            60%  { opacity: 0.3; r: 3; }
+            100% { opacity: 0; r: 2; }
+        }
+        .terminal {
+            background: #000;
+            border: 1px solid #1f3a26;
+            border-radius: 3px;
+            padding: 0.75rem 1rem;
+            width: 100%;
+            max-width: 420px;
+            min-height: 180px;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            box-sizing: border-box;
+            box-shadow: 0 0 20px rgba(91, 227, 126, 0.1);
+        }
+        .log-line {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .log-line.info { color: #9fffb0; }
+        .log-line.warn { color: #e3c45b; }
+        .log-line.err  { color: #ff6b6b; }
+        .cursor {
+            display: inline-block;
+            width: 7px;
+            height: 1em;
+            background: #5be37e;
+            vertical-align: text-bottom;
+            margin-left: 2px;
+            animation: blink 1s steps(2) infinite;
+        }
+        @keyframes blink {
+            50% { opacity: 0; }
         }
     </style>
 </head>
 <body>
-    <!--
-      debug.html - Fake Source Code Error
-      
-      UI idea:
-      A fake code editor with retro styling, showing something like:
-      
-      if (connection.stable && user.trustworthy && vibes >= 7.4) {
-          connectToSatellite();
-      } else {
-          throw new Error("VibeError: vibes_not_high_enough");
-      }
-      
-      Highlight the failing line, red underline, etc.
-      
-      Button:
-      - [Apply Unreviewed Hotfix]
-      - [Comment Out Sanity Checks]
-      
-      After they click:
-      → Redirect to connecting.html
-    -->
-    <div class="container">
-        <h1>Satellite Connection Debug</h1>
-        <div class="code-editor">
-            <div class="code-line"><span class="keyword">if</span> (connection.<span class="keyword">stable</span> && user.<span class="keyword">trustworthy</span> && vibes >= <span class="number">7.4</span>) {</div>
-            <div class="code-line">    connectToSatellite();</div>
-            <div class="code-line">} <span class="keyword">else</span> {</div>
-            <div class="code-line error-line">    <span class="keyword">throw</span> <span class="keyword">new</span> Error(<span class="string">"VibeError: vibes_not_high_enough"</span>);</div>
-            <div class="code-line">}</div>
-        </div>
-        <button onclick="window.location.href='error666.html'">Apply Unreviewed Hotfix</button>
-        <button onclick="window.location.href='error666.html'">Comment Out Sanity Checks</button>
+    <h1>LOCATING SATELLITE</h1>
+    <div class="subtitle">acquiring sky lock...</div>
+
+    <div class="radar">
+        <svg viewBox="0 0 200 200">
+            <circle class="ring" cx="100" cy="100" r="95"/>
+            <circle class="ring" cx="100" cy="100" r="65"/>
+            <circle class="ring" cx="100" cy="100" r="35"/>
+            <line class="crosshair" x1="5" y1="100" x2="195" y2="100"/>
+            <line class="crosshair" x1="100" y1="5" x2="100" y2="195"/>
+
+            <g class="sweep">
+                <defs>
+                    <linearGradient id="sweepGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="#5be37e" stop-opacity="0"/>
+                        <stop offset="100%" stop-color="#5be37e" stop-opacity="0.7"/>
+                    </linearGradient>
+                </defs>
+                <path d="M 100 100 L 195 100 A 95 95 0 0 0 167 33 Z" fill="url(#sweepGrad)"/>
+                <line x1="100" y1="100" x2="195" y2="100" stroke="#5be37e" stroke-width="1.5"/>
+            </g>
+
+            <circle class="blip b1" cx="150" cy="60"  r="3"/>
+            <circle class="blip b2" cx="55"  cy="135" r="3"/>
+            <circle class="blip b3" cx="135" cy="155" r="3"/>
+        </svg>
     </div>
+
+    <div class="terminal" id="terminal"></div>
+
+    <script>
+        const lines = [
+            { text: '> initializing skylink probe v3.14...', cls: 'info', delay: 200 },
+            { text: '> azimuth 042°  elevation 17°  ...no signal', cls: 'info', delay: 700 },
+            { text: '> sweeping band L1 (1575.42 MHz)', cls: 'info', delay: 500 },
+            { text: '[warn] packet loss 94%, retrying...', cls: 'warn', delay: 700 },
+            { text: '> azimuth 118°  elevation 23°  ...weak ping', cls: 'info', delay: 600 },
+            { text: '> handshake attempt 1/3 ........ failed', cls: 'info', delay: 700 },
+            { text: '[warn] downlink jitter exceeds threshold', cls: 'warn', delay: 600 },
+            { text: '> handshake attempt 2/3 ........ failed', cls: 'info', delay: 700 },
+            { text: '[err]  satellite SKY-LINK-9 unreachable', cls: 'err',  delay: 800 },
+            { text: '> rerouting through fallback relay...', cls: 'info', delay: 700 }
+        ];
+
+        const term = document.getElementById('terminal');
+
+        function addLine({ text, cls }) {
+            const div = document.createElement('div');
+            div.className = 'log-line ' + cls;
+            div.textContent = text;
+            term.appendChild(div);
+            term.scrollTop = term.scrollHeight;
+        }
+
+        function addCursor() {
+            const div = document.createElement('div');
+            div.className = 'log-line info';
+            div.innerHTML = '> <span class="cursor"></span>';
+            term.appendChild(div);
+        }
+
+        let i = 0;
+        function next() {
+            if (i >= lines.length) {
+                addCursor();
+                setTimeout(() => {
+                    window.location.href = 'error666.html';
+                }, 900);
+                return;
+            }
+            addLine(lines[i]);
+            setTimeout(next, lines[i].delay);
+            i++;
+        }
+        next();
+    </script>
 </body>
 </html>

@@ -195,27 +195,28 @@
             <div class="button-group">
                 <button class="success" onclick="setNewDevice()">New Device</button>
                 <button class="success" onclick="setHasAccount()">Has Account</button>
+                <button class="success" onclick="randomPlayaCookie()">🎲 Random Playa Cookie</button>
                 <button class="danger" onclick="clearAll()">Clear All Storage</button>
             </div>
         </div>
-        
+
         <div class="section">
-            <h2>Intranet Data</h2>
+            <h2>Intranet</h2>
             <div class="info-grid">
-                <div class="info-label">Posts Count:</div>
-                <div class="info-value" id="posts-count">-</div>
+                <div class="info-label">Server Posts:</div>
+                <div class="info-value" id="server-posts-count">-</div>
             </div>
-            <div class="button-group">
-                <button class="danger" onclick="clearIntranetPosts()">Clear All Posts</button>
+            <div class="links">
+                <a href="/debug1992intranet.html">→ Manage Intranet Posts (debug1992intranet)</a>
             </div>
         </div>
-        
+
         <div class="section">
             <h2>All LocalStorage</h2>
             <div class="storage-list" id="storage-list">-</div>
             <button onclick="refreshStorage()" style="margin-top: 0.5rem;">Refresh Storage</button>
         </div>
-        
+
         <div class="section">
             <h2>Navigation</h2>
             <div class="links">
@@ -224,8 +225,7 @@
                 <a href="/login.html">Login</a>
                 <a href="/connect/go.html">Connect: Go</a>
                 <a href="/intranet/home.html">Intranet</a>
-                <a href="/verify/captcha_xr5u.html">Captcha 1</a>
-                <a href="/verify/captcha_y2qu.html">Captcha 2</a>
+                <a href="/verify/captcha.html">Captcha</a>
             </div>
         </div>
     </div>
@@ -260,13 +260,38 @@
             accountEl.textContent = hasAccount ? 'true' : 'false';
             accountEl.className = 'info-value ' + (hasAccount ? 'true' : 'false');
             
-            // Posts count
-            try {
-                const posts = JSON.parse(localStorage.getItem('intranetPosts') || '[]');
-                document.getElementById('posts-count').textContent = posts.length;
-            } catch (e) {
-                document.getElementById('posts-count').textContent = '0';
-            }
+            // Server posts count
+            fetch('/api/posts', { cache: 'no-store' })
+                .then(r => r.ok ? r.json() : Promise.reject())
+                .then(posts => {
+                    const total = posts.length;
+                    const archived = posts.filter(p => p.archived).length;
+                    document.getElementById('server-posts-count').textContent =
+                        `${total} total (${archived} archived)`;
+                })
+                .catch(() => {
+                    document.getElementById('server-posts-count').textContent = 'API unreachable';
+                });
+        }
+
+        // Burning-man-style random name generator
+        const NAME_ADJ = ['Sparkle','Cosmic','Dusty','Neon','Glitter','Funky','Wild','Magic','Galactic','Pixel','Velvet','Disco','Lunar','Solar','Electric','Feral','Sunset','Wandering','Static','Holy','Crystal','Echo','Phantom','Velour','Mystic'];
+        const NAME_NOUN = ['Phoenix','Pony','Wizard','Bunny','Dragon','Comet','Storm','Cactus','Owl','Coyote','Mirage','Jellyfish','Raven','Yeti','Sphinx','Goblin','Mantis','Lotus','Mongoose','Kraken','Cherub','Beetle','Falcon','Hare','Moth'];
+        function randomPlayaName() {
+            const a = NAME_ADJ[Math.floor(Math.random() * NAME_ADJ.length)];
+            const n = NAME_NOUN[Math.floor(Math.random() * NAME_NOUN.length)];
+            const num = String(Math.floor(Math.random() * 90) + 10); // 10–99, 2 digits
+            return a + n + num;
+        }
+
+        async function randomPlayaCookie() {
+            const name = randomPlayaName();
+            // commit via the signed-cookie path so it works on protected pages
+            setTempBurnerName(name);
+            await commitBurnerName();
+            refreshInfo();
+            refreshStorage();
+            alert(`New random Playa Name cookie: ${name}`);
         }
         
         function refreshStorage() {
@@ -362,14 +387,6 @@
                 refreshInfo();
                 refreshStorage();
                 alert('All localStorage cleared!');
-            }
-        }
-        
-        function clearIntranetPosts() {
-            if (confirm('Clear all intranet posts?')) {
-                localStorage.removeItem('intranetPosts');
-                refreshInfo();
-                alert('Intranet posts cleared!');
             }
         }
         

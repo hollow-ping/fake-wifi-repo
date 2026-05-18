@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intranet Admin — debug1992intranet</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 2rem 1rem;
+            font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+            background: #fff;
+            color: #000;
+            line-height: 1.5;
+            font-size: 16px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            margin: 0 0 0.25rem;
+            font-size: 1.5rem;
+            border-bottom: 2px solid #000;
+            padding-bottom: 0.5rem;
+        }
+        .subtitle {
+            color: #555;
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+        }
+        .back-link {
+            color: #000;
+            font-size: 0.9rem;
+            text-decoration: underline;
+        }
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin: 1.5rem 0 1rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .count {
+            color: #555;
+            font-size: 0.9rem;
+        }
+        .section-header {
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid #000;
+            font-weight: 700;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .post {
+            border: 1px solid #000;
+            padding: 0.75rem 1rem;
+            margin: 0.75rem 0;
+            background: #fff;
+        }
+        .post.archived {
+            background: #f4f4f4;
+            opacity: 0.7;
+        }
+        .post-author-label {
+            font-size: 0.85rem;
+            font-weight: 700;
+            margin-bottom: 0.3rem;
+        }
+        .post-content {
+            white-space: pre-wrap;
+            word-break: break-word;
+            margin: 0 0 0.5rem;
+        }
+        .post-meta {
+            margin-top: 0.4rem;
+            font-size: 0.8rem;
+            color: #555;
+        }
+        .post-details {
+            font-size: 0.75rem;
+            color: #666;
+            margin-top: 0.25rem;
+            font-family: 'Courier New', monospace;
+        }
+        .post-actions {
+            margin-top: 0.5rem;
+        }
+        .post-actions button {
+            padding: 0.3rem 0.75rem;
+            background: #fff;
+            color: #000;
+            border: 1px solid #000;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.85rem;
+        }
+        .post-actions button:hover {
+            background: #000;
+            color: #fff;
+        }
+        .empty {
+            color: #777;
+            font-style: italic;
+            padding: 1rem 0;
+        }
+        .refresh-btn {
+            padding: 0.4rem 0.9rem;
+            background: #000;
+            color: #fff;
+            border: 1px solid #000;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Intranet Admin</h1>
+        <div class="subtitle">
+            <a class="back-link" href="/debug1992.html">← back to debug1992</a>
+        </div>
+
+        <div class="toolbar">
+            <div class="count" id="count">loading…</div>
+            <button class="refresh-btn" onclick="loadAll()">Refresh</button>
+        </div>
+
+        <div class="section-header">Active</div>
+        <div id="active"></div>
+
+        <div class="section-header">Archived</div>
+        <div id="archived"></div>
+    </div>
+
+    <script>
+        function formatDate(ts) {
+            const d = new Date(ts);
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            const yy = String(d.getFullYear()).slice(-2);
+            let h = d.getHours();
+            const m = String(d.getMinutes()).padStart(2, '0');
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            h = h % 12; if (h === 0) h = 12;
+            return `${mm}/${dd}/${yy} ${h}:${m} ${ampm}`;
+        }
+        function fullTimestamp(ts) {
+            return new Date(ts).toLocaleString();
+        }
+        function metaLine(ts) {
+            return `${formatDate(ts)} -- PDF 2026`;
+        }
+
+        async function setArchived(id, archived) {
+            try {
+                const r = await fetch(`/api/posts/${encodeURIComponent(id)}/archive`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ archived })
+                });
+                if (!r.ok) throw new Error('bad status');
+                loadAll();
+            } catch (e) {
+                alert("Couldn't update archive state.");
+            }
+        }
+
+        function renderPost(post, isArchived) {
+            const wrap = document.createElement('div');
+            wrap.className = 'post' + (isArchived ? ' archived' : '');
+
+            const authorLabel = document.createElement('div');
+            authorLabel.className = 'post-author-label';
+            authorLabel.textContent = `${post.author}:`;
+
+            const content = document.createElement('div');
+            content.className = 'post-content';
+            content.textContent = post.content;
+
+            const meta = document.createElement('div');
+            meta.className = 'post-meta';
+            meta.textContent = metaLine(post.timestamp);
+
+            const details = document.createElement('div');
+            details.className = 'post-details';
+            details.textContent = `id: ${post.id} · posted: ${fullTimestamp(post.timestamp)}`;
+
+            const actions = document.createElement('div');
+            actions.className = 'post-actions';
+            const btn = document.createElement('button');
+            btn.textContent = isArchived ? 'Unarchive' : 'Archive';
+            btn.onclick = () => setArchived(post.id, !isArchived);
+            actions.appendChild(btn);
+
+            wrap.appendChild(authorLabel);
+            wrap.appendChild(content);
+            wrap.appendChild(meta);
+            wrap.appendChild(details);
+            wrap.appendChild(actions);
+            return wrap;
+        }
+
+        async function loadAll() {
+            const countEl = document.getElementById('count');
+            const activeEl = document.getElementById('active');
+            const archivedEl = document.getElementById('archived');
+            activeEl.innerHTML = '';
+            archivedEl.innerHTML = '';
+            countEl.textContent = 'loading…';
+
+            let data;
+            try {
+                const r = await fetch('/api/posts', { cache: 'no-store' });
+                if (!r.ok) throw new Error('bad status');
+                data = await r.json();
+            } catch (e) {
+                countEl.textContent = 'API unreachable';
+                return;
+            }
+
+            const active = data.filter(p => !p.archived)
+                .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            const archived = data.filter(p => p.archived)
+                .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+            countEl.textContent = `${data.length} total · ${active.length} active · ${archived.length} archived`;
+
+            if (active.length === 0) {
+                const e = document.createElement('div');
+                e.className = 'empty';
+                e.textContent = 'No active posts.';
+                activeEl.appendChild(e);
+            } else {
+                active.forEach(p => activeEl.appendChild(renderPost(p, false)));
+            }
+
+            if (archived.length === 0) {
+                const e = document.createElement('div');
+                e.className = 'empty';
+                e.textContent = 'No archived posts.';
+                archivedEl.appendChild(e);
+            } else {
+                archived.forEach(p => archivedEl.appendChild(renderPost(p, true)));
+            }
+        }
+
+        loadAll();
+        setInterval(loadAll, 8000);
+    </script>
+</body>
+</html>
