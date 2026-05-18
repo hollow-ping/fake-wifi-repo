@@ -458,7 +458,8 @@ $HTTP["url"] =~ "^/\.well-known/captive-portal$" {
 
 # Serve portal for any other hostname/path (google.com, etc.)
 # Probe paths above must be excluded or rewrite wins and returns 200 + index.html
-$HTTP["url"] !~ "^/(\.well-known/captive-portal|index\.html|generate_204|gen_204|hotspot-detect\.html|library/test/success\.html|ncsi\.txt|connecttest\.txt|captive-portal-api\.json|.*\.(html|css|js|jpg|jpeg|png|gif|ico|json|txt|pdf|svg|woff|woff2|ttf|eot|mp4|webm|map))" {
+# /api/ must be excluded so the mod_proxy block downstream can take over
+$HTTP["url"] !~ "^/(api/|\.well-known/captive-portal|index\.html|generate_204|gen_204|hotspot-detect\.html|library/test/success\.html|ncsi\.txt|connecttest\.txt|captive-portal-api\.json|.*\.(html|css|js|jpg|jpeg|png|gif|ico|json|txt|pdf|svg|woff|woff2|ttf|eot|mp4|webm|map))" {
     url.rewrite-once = (
         "^/(.*)" => "/index.html"
     )
