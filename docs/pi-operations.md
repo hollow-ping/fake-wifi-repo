@@ -70,6 +70,53 @@ sudo systemctl enable --now fake-wifi-ap.service
 
 ---
 
+## Boot-time safety: `AP_BOOT_DELAY_SECS`
+
+When `fake-wifi-ap.service` is enabled, `start-ap.sh` **sleeps for `AP_BOOT_DELAY_SECS` (default 60s) at boot only** before touching any interface. This is your SSH recovery window.
+
+**Why it exists:** if `wlan1` (USB dongle) fails to appear at boot — e.g., dongle unplugged, AIC8800 DKMS broken after a kernel update — `start-ap.sh` falls back to single-radio mode on **`wlan0`**, which can disrupt home Wi‑Fi and lock you out. The delay gives you 60s to SSH in and abort before that happens.
+
+**Configuration** in `/etc/fake-wifi/ap.conf`:
+
+```
+AP_BOOT_DELAY_SECS=60   # seconds; 0 disables; only applies at boot
+```
+
+**Important properties:**
+
+- Only triggers when **systemd** starts the service (detected via `$INVOCATION_ID`).
+- Manual `sudo start-ap.sh` runs are **instant** — no delay.
+- Logged to `/var/log/ap-start.log` as the first line at boot.
+
+### Abort during the 60s window
+
+If you SSH in during boot and see BURNERNET isn't there yet but you suspect trouble (e.g., `wlan1` missing → fallback imminent):
+
+```bash
+sudo systemctl stop fake-wifi-ap          # cancels the pending boot start
+sudo systemctl disable fake-wifi-ap       # keep it disabled across reboots
+```
+
+Then debug the dongle / driver without time pressure. Re-enable later:
+
+```bash
+sudo systemctl enable --now fake-wifi-ap
+```
+
+### Tune or remove the delay
+
+Edit `/etc/fake-wifi/ap.conf`:
+
+```bash
+sudo nano /etc/fake-wifi/ap.conf
+# AP_BOOT_DELAY_SECS=0    # boot the AP immediately (no recovery window)
+# AP_BOOT_DELAY_SECS=120  # extra cautious
+```
+
+No service restart needed; the value is read on each `start-ap.sh` invocation.
+
+---
+
 ## Captive portal / lighttpd pitfalls
 
 | `curl -sI http://127.0.0.1/generate_204` | Meaning | Fix |
@@ -121,7 +168,7 @@ Recovery if `wlan0` is broken: `bash ~/fake-wifi-repo/pi/recover-network.sh`
 | File | Role |
 |------|------|
 | `setup-pi.sh` | Installer: packages, `/var/www/html`, hostapd, dnsmasq, lighttpd captive drop-in, `start-ap.sh` |
-| `pi/ap.conf` → `/etc/fake-wifi/ap.conf` | `AP_PHYS=auto`, USB preferred |
+| `pi/ap.conf` → `/etc/fake-wifi/ap.conf` | `AP_PHYS=auto`, USB preferred, `AP_BOOT_DELAY_SECS=60` |
 | `/usr/local/bin/start-ap.sh` | Creates `uap0`, starts hostapd + dnsmasq |
 | `pi/recover-network.sh` | NM recovery for `wlan0` |
 | `captive-portal-files/` | `ncsi.txt`, `connecttest.txt`, `captive-portal-api.json`, etc. |
@@ -138,3 +185,4 @@ When continuing work on this repo:
 4. Rsync **before** setup if `setup-pi.sh` changed on Mac.
 5. Don’t enable broad NetworkManager `unmanaged-devices` rules (bricked `wlan0` historically — setup only unmanagers `wlan1`).
 6. Guest Android issues → **Private DNS** first, then manual portal URL.
+7. **`AP_BOOT_DELAY_SECS`** in `/etc/fake-wifi/ap.conf` is the SSH recovery window — only fires under systemd, not on manual `start-ap.sh`. If a user reports "AP took a minute to come up after reboot" that's expected.
