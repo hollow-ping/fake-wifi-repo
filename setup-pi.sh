@@ -20,12 +20,39 @@ if [ -x /usr/local/bin/stop-ap.sh ]; then
     sudo /usr/local/bin/stop-ap.sh 2>/dev/null || true
 fi
 
-# Install packages
+# Install packages (AP stack only — LED lib installed separately; see install_rpi_ws281x)
 sudo apt update
-sudo apt install -y hostapd dnsmasq lighttpd python3 iptables python3-rpi-ws281x 2>/dev/null || \
 sudo apt install -y hostapd dnsmasq lighttpd python3 iptables
-# NeoPixel library (optional; LED service skips gracefully if missing)
-pip3 install --break-system-packages rpi-ws281x 2>/dev/null || pip3 install rpi-ws281x 2>/dev/null || true
+
+# NeoPixel library: apt on Bookworm/Pi OS; pip on trixie where python3-rpi-ws281x is absent
+install_rpi_ws281x() {
+    if python3 -c 'from rpi_ws281x import PixelStrip' 2>/dev/null; then
+        echo "rpi_ws281x: already installed."
+        return 0
+    fi
+    if apt-cache show python3-rpi-ws281x &>/dev/null; then
+        echo "Installing python3-rpi-ws281x from apt..."
+        if sudo apt install -y python3-rpi-ws281x &&
+           python3 -c 'from rpi_ws281x import PixelStrip' 2>/dev/null; then
+            return 0
+        fi
+        echo "apt install python3-rpi-ws281x failed; trying pip..."
+    else
+        echo "python3-rpi-ws281x not in apt (common on Debian trixie) — installing via pip..."
+    fi
+    sudo apt install -y python3-dev python3-pip build-essential
+    if pip3 install --break-system-packages rpi-ws281x 2>/dev/null ||
+       pip3 install rpi-ws281x 2>/dev/null; then
+        if python3 -c 'from rpi_ws281x import PixelStrip' 2>/dev/null; then
+            return 0
+        fi
+    fi
+    echo "WARNING: could not install rpi_ws281x — status LED service will not be enabled."
+    return 1
+}
+
+FAKE_WIFI_HAS_WS281X=false
+install_rpi_ws281x && FAKE_WIFI_HAS_WS281X=true
 
 echo ""
 echo "=== Network status (before AP config) ==="
@@ -506,8 +533,14 @@ fi
 if [ -f "$SCRIPT_DIR/pi/fake-wifi-leds.service" ]; then
     sudo cp "$SCRIPT_DIR/pi/fake-wifi-leds.service" /etc/systemd/system/fake-wifi-leds.service
     sudo systemctl daemon-reload
-    sudo systemctl enable fake-wifi-leds.service
-    sudo systemctl restart fake-wifi-leds.service 2>/dev/null || true
+    if [ "$FAKE_WIFI_HAS_WS281X" = true ]; then
+        sudo systemctl enable fake-wifi-leds.service
+        sudo systemctl restart fake-wifi-leds.service
+        echo "Status LEDs: fake-wifi-leds.service enabled."
+    else
+        sudo systemctl disable --now fake-wifi-leds.service 2>/dev/null || true
+        echo "Status LEDs: skipped (re-run setup after: pip3 install --break-system-packages rpi-ws281x)."
+    fi
 fi
 
 # Install AP service unit (not enabled here — verify wlan0 uplink first)
