@@ -178,6 +178,14 @@ mkdir -p /var/log
 # shellcheck source=/dev/null
 [ -f /etc/fake-wifi/ap.conf ] && . /etc/fake-wifi/ap.conf
 
+# Boot-only delay: when started by systemd at boot, sleep so the user has a
+# window to SSH in over wlan0 and disable the AP if something is wrong.
+# Manual invocations have no INVOCATION_ID and run immediately.
+if [ -n "${INVOCATION_ID:-}" ] && [ "${AP_BOOT_DELAY_SECS:-0}" -gt 0 ] 2>/dev/null; then
+    echo "fake-wifi-ap: boot delay ${AP_BOOT_DELAY_SECS}s (SSH on wlan0 to abort: sudo systemctl stop fake-wifi-ap)" | tee -a "$LOG_FILE"
+    sleep "$AP_BOOT_DELAY_SECS"
+fi
+
 list_wlans() {
     local i
     for i in $(ls /sys/class/net 2>/dev/null | grep -E '^wlan[0-9]+$' | sort -V); do
