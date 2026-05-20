@@ -58,6 +58,9 @@ sudo iw dev uap0 info | grep ssid     # BURNERNET
 curl -sI http://127.0.0.1/generate_204 | head -5
 # MUST be: HTTP/1.1 302 Found
 #          Location: http://192.168.4.1/
+
+getent hosts burner-net.com    # 192.168.4.1
+curl -sI -H "Host: burner-net.com" http://127.0.0.1/ | head -3   # 200, portal HTML
 ```
 
 **If phones don’t see BURNERNET:** AP is almost certainly stopped — run step 3, don’t re-run setup unless you need config changes.
@@ -150,16 +153,39 @@ Recovery if `wlan0` is broken: `bash ~/fake-wifi-repo/pi/recover-network.sh`
 
 ---
 
-## Android instructions (copy to guests)
+## Android auto-popup (what we optimize for)
 
-1. Join Wi‑Fi **`BURNERNET`** (no password).
-2. Tap **Sign in to network** when it appears.
-3. If nothing appears:
-   - **Settings → Network → Private DNS → Off** (Automatic/Strict breaks captive detection).
-   - Forget **BURNERNET**, rejoin.
-   - Open **`http://192.168.4.1/`** manually (http, not https).
-4. Optional: turn off mobile data / VPN briefly.
-5. Follow the portal (demo only — no real accounts on the Pi).
+Android is **much pickier than iPhone**. Goal: **“Sign in to network”** notification or browser sheet without guests typing URLs.
+
+**How Android decides (simplified):**
+
+1. **Android 11+:** DHCP option **captive-portal** → fetch `http://192.168.4.1/.well-known/captive-portal` → if `captive: true`, prompt with `user-portal-url`.
+2. **Fallback:** HTTP/HTTPS probes to `www.google.com/generate_204`, etc. → expect **204** on real internet; on a portal, **302** to login.
+
+**Why it often failed before:** probes use **HTTPS** first; the Pi had no **:443**, so the check died before any redirect. `setup-pi.sh` now adds self-signed HTTPS + fixes DHCP option path.
+
+**Still breaks on some phones if:**
+
+- **Private DNS** is On (Strict/Automatic) — uses Cloudflare/Google DNS, not the Pi. **One sign at check-in: turn it Off.**
+- OEM skin hides the notification (check shade for “Sign in to network”).
+- Mobile data + Wi‑Fi conflict — briefly disable mobile data when testing.
+
+**Verify on the Pi (AP running):**
+
+```bash
+curl -sI http://127.0.0.1/generate_204 | head -3          # 302 → portal
+curl -skI https://127.0.0.1/generate_204 | head -3       # 302 (self-signed TLS)
+curl -s http://127.0.0.1/.well-known/captive-portal      # captive JSON
+```
+
+After changing `setup-pi.sh`: rsync → `bash setup-pi.sh` → `sudo start-ap.sh` → test with a real Android on Private DNS **Off**.
+
+## Android instructions (copy to guests — fallback only)
+
+1. Join **`BURNERNET`** (no password).
+2. Look for **Sign in to network** (notification or popup) and tap it.
+3. If nothing: **Private DNS → Off**, forget network, rejoin.
+4. Last resort: open **`http://192.168.4.1/`** in the browser address bar.
 
 ---
 

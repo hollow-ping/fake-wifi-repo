@@ -22,7 +22,7 @@ flowchart TB
     n7 -- Auto --> n26["Security: Home"]
     n26 --> n8
     n17 -- Auto --> n27["Connect: queue"]
-    n27 -- Auto --> n18["Satellite Connection Debug"]
+    n27 -- Auto --> n18["Locating Satellite"]
     n18 -- Auto --> n23
     n24 -- Logout --> n1
 

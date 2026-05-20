@@ -20,24 +20,69 @@
         .container {
             text-align: center;
             padding: 2rem;
+            max-width: 420px;
+            width: 90%;
         }
         h1 {
             font-size: 2.5rem;
-            margin-bottom: 2rem;
-        }
-        .queue-number {
-            font-size: 4rem;
-            font-weight: bold;
-            margin: 2rem 0;
-            text-shadow: 3px 3px 6px rgba(0,0,0,0.3);
+            margin-bottom: 1.5rem;
         }
         .walking-man {
             font-size: 3rem;
-            margin: 1rem 0;
+            margin: 0.5rem 0 1.25rem;
+        }
+        .queue-stage {
+            position: relative;
+            width: 100%;
+            margin: 0 auto 1rem;
+            padding-top: 3.5rem;
+            overflow: visible;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 28px;
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #fff3e0 0%, #ffffff 100%);
+            border-radius: 14px;
+            transition: width 0.45s ease-out;
+            box-shadow: 0 0 12px rgba(255, 255, 255, 0.45);
+        }
+        .queue-number {
+            position: absolute;
+            top: 0;
+            left: 92%;
+            transform: translateX(-50%);
+            font-size: 3rem;
+            font-weight: bold;
+            line-height: 1;
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.35);
+            transition: left 0.45s ease-out, transform 0.55s ease-in-out;
+            white-space: nowrap;
+        }
+        .queue-number.past-bar {
+            left: 0;
+            transform: translateX(calc(-100% - 12px));
+            color: #ffe082;
+        }
+        .bar-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            opacity: 0.85;
+            margin-top: 0.35rem;
+            letter-spacing: 0.03em;
         }
         .status {
             font-size: 1.2rem;
             margin-top: 1rem;
+            min-height: 1.5em;
         }
     </style>
 </head>
@@ -45,28 +90,75 @@
     <div class="container">
         <h1>BURNERNET AUTH QUEUE</h1>
         <div class="walking-man">🚶</div>
-        <div class="queue-number" id="queueNum">#1406</div>
+
+        <div class="queue-stage">
+            <div class="queue-number" id="queueNum">#1406</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="bar-labels">
+                <span>FRONT</span>
+                <span>BACK</span>
+            </div>
+        </div>
+
         <div class="status" id="status">Estimated wait: 14 minutes...</div>
     </div>
     <script>
-        // Random starting number between 1000-3000
-        let queueNum = Math.floor(Math.random() * 2000) + 1000;
-        document.getElementById('queueNum').textContent = '#' + queueNum;
-        
-        setTimeout(() => { queueNum = 40; updateQueue(); }, 1000);
-        setTimeout(() => { queueNum = 5; updateQueue(); }, 1400);
-        setTimeout(() => { queueNum = 1; updateQueue(); }, 1600);
-        setTimeout(() => { 
-            document.getElementById('status').textContent = 'Connecting...';
-        }, 2500);
-        setTimeout(() => {
-            window.location.href = 'geolocate.html';
-        }, 3000);
-        
-        function updateQueue() {
-            document.getElementById('queueNum').textContent = '#' + queueNum;
+        const queueNumEl = document.getElementById('queueNum');
+        const progressFill = document.getElementById('progressFill');
+        const statusEl = document.getElementById('status');
+
+        const startNum = Math.floor(Math.random() * 2000) + 1000;
+        const waitMins = Math.max(3, Math.round(startNum / 100));
+
+        function queuePosition(num) {
+            if (num < 0) return 0;
+            if (num <= 1) return 4;
+            if (num <= 5) return 12;
+            if (num <= 40) return 55;
+            return 88;
         }
+
+        function updateUI(num, pastBar) {
+            queueNumEl.textContent = '#' + num;
+            queueNumEl.classList.toggle('past-bar', pastBar);
+            if (!pastBar) {
+                queueNumEl.style.left = queuePosition(num) + '%';
+            }
+        }
+
+        function setProgress(pct) {
+            progressFill.style.width = pct + '%';
+        }
+
+        updateUI(startNum, false);
+        setProgress(6);
+        statusEl.textContent = 'Estimated wait: ' + waitMins + ' minutes...';
+
+        const steps = [
+            { num: 40, progress: 58, status: 'Moving up in line...', delay: 1000 },
+            { num: 5, progress: 82, status: 'Almost at the front...', delay: 400 },
+            { num: 1, progress: 100, status: 'You are next!', delay: 200 },
+            { num: -1, progress: 100, past: true, status: 'Connecting...', delay: 450, hold: 2200 }
+        ];
+
+        let t = 0;
+        steps.forEach((step) => {
+            t += step.delay;
+            setTimeout(() => {
+                updateUI(step.num, !!step.past);
+                setProgress(step.progress);
+                statusEl.textContent = step.status;
+            }, t);
+
+            if (step.hold) {
+                t += step.hold;
+                setTimeout(() => {
+                    window.location.href = 'geolocate.html';
+                }, t);
+            }
+        });
     </script>
 </body>
 </html>
-

@@ -70,7 +70,8 @@ Once deployed, you can:
 The `index.html` file has been configured to work on GitHub Pages:
 - Domain redirect logic allows `github.io` domains
 - Also allows local IP addresses (`192.168.4.1`) for local testing
-- Original domain redirect (`burner-net.com`) is preserved for production use
+- On **BURNERNET** only, dnsmasq resolves `burner-net.com` → `192.168.4.1` (fake DNS — no real public site; do not register the domain on the internet)
+- Guests who type the name may need **`http://`** explicitly; the Pi does not serve HTTPS today (see `docs/pi-operations.md`)
 
 ### File Structure
 
