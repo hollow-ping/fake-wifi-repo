@@ -300,7 +300,8 @@
             // Advance to next captcha or finish
             currentCaptchaIndex++;
             if (currentCaptchaIndex < 2) {
-                document.getElementById('errorMessage').textContent = correct ? '' : 'Moving to next challenge...';
+                document.getElementById('errorMessage').textContent =
+                    correct ? '' : 'Moving to next challenge...';
                 loadCaptcha();
             } else {
                 try {
@@ -310,7 +311,6 @@
                         if (tempName) setBurnerName(tempName);
                     }
                 } catch (e) {
-                    // Never strand the user on captcha — fall back to unsigned
                     const tempName = getTempBurnerName();
                     if (tempName) {
                         localStorage.setItem('burnerName', tempName);

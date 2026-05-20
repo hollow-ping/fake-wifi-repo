@@ -43,7 +43,6 @@
             border: 1px solid #ddd;
             border-radius: 4px;
             box-sizing: border-box;
-            font-size: 16px;
         }
         button {
             width: 100%;
@@ -83,16 +82,17 @@
             text-decoration: underline;
         }
     </style>
+    <link rel="stylesheet" href="css/main.css">
 </head>
 <body>
     <div class="container">
         <h1>Login</h1>
         <form id="loginForm">
             <label>Playa Name:</label>
-            <input type="text" id="burnerName" autocomplete="off" data-1p-ignore="true" data-lpignore="true" data-form-type="other" required>
+            <input type="text" id="burnerName" required>
             
             <label>Password:</label>
-            <input type="password" id="password" placeholder="••••••••" autocomplete="off" data-1p-ignore="true" data-lpignore="true" data-form-type="other" required>
+            <input type="password" id="password" placeholder="••••••••" required>
             
             <button type="submit" id="loginBtn">Login</button>
             <div id="formError" class="error-message"></div>
@@ -105,22 +105,17 @@
     
     <script src="js/main.js"></script>
     <script>
-        (async function onLoad() {
-            const burnerNameEl = document.getElementById('burnerName');
-            const passwordEl = document.getElementById('password');
-            const valid = await verifyBurnerCookie();
-            const storedName = localStorage.getItem('burnerName');
-            if (valid && storedName) {
-                burnerNameEl.value = storedName;
-                passwordEl.value = '********';
-                setTimeout(() => {
-                    window.location.href = 'connect/go.html';
-                }, 500);
-            }
-        })();
+        const RECOGNIZE_DELAY_MS = 1000;
+        let autoLoginTimer = null;
 
-        document.getElementById('loginForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
+        function cancelAutoLogin() {
+            if (autoLoginTimer) {
+                clearTimeout(autoLoginTimer);
+                autoLoginTimer = null;
+            }
+        }
+
+        async function attemptLogin({ recognized = false } = {}) {
             const burnerNameEl = document.getElementById('burnerName');
             const passwordEl = document.getElementById('password');
             const formError = document.getElementById('formError');
@@ -131,10 +126,14 @@
             burnerNameEl.classList.remove('error');
             passwordEl.classList.remove('error');
 
-            if (!burnerName || !password) {
+            if (!burnerName) {
+                formError.textContent = 'Please enter your Playa Name';
+                burnerNameEl.classList.add('error');
+                return;
+            }
+            if (!recognized && !password) {
                 formError.textContent = 'Please enter both Playa Name and password';
-                if (!burnerName) burnerNameEl.classList.add('error');
-                if (!password) passwordEl.classList.add('error');
+                passwordEl.classList.add('error');
                 return;
             }
 
@@ -143,10 +142,39 @@
             if (valid && storedName && storedName === burnerName) {
                 window.location.href = 'login-success.html';
             } else {
-                formError.textContent = 'Invalid';
+                formError.textContent = 'Account not found';
                 burnerNameEl.classList.add('error');
                 passwordEl.classList.add('error');
             }
+        }
+
+        (async function onLoad() {
+            const burnerNameEl = document.getElementById('burnerName');
+            const passwordEl = document.getElementById('password');
+            const valid = await verifyBurnerCookie();
+            const storedName = localStorage.getItem('burnerName');
+            if (!valid || !storedName) return;
+
+            burnerNameEl.value = storedName;
+            burnerNameEl.readOnly = true;
+            passwordEl.placeholder = '••••••••';
+            passwordEl.focus();
+
+            autoLoginTimer = setTimeout(() => {
+                autoLoginTimer = null;
+                attemptLogin({ recognized: true });
+            }, RECOGNIZE_DELAY_MS);
+        })();
+
+        document.getElementById('burnerName').addEventListener('input', () => {
+            cancelAutoLogin();
+            document.getElementById('burnerName').readOnly = false;
+        });
+
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            cancelAutoLogin();
+            await attemptLogin({ recognized: false });
         });
     </script>
 </body>

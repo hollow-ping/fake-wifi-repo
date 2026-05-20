@@ -116,25 +116,26 @@
             opacity: 0.6;
         }
     </style>
+    <link rel="stylesheet" href="../css/main.css">
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>LOCAL INTRANET</h1>
-            <a href="/index.html" class="logout-btn">Logout</a>
+            <a href="/index.html" class="logout-btn" id="logoutBtn">Logout</a>
         </div>
-        <div class="welcome" id="welcome">Welcome, User</div>
+        <div class="welcome" id="welcome">Welcome, …</div>
         
         <div class="message-board">
             <div class="post-form">
                 <h2 style="margin-top: 0;">New Post</h2>
                 <div class="post-author-label" id="postingAs">[Playa Name]:</div>
                 <textarea id="postText" placeholder="What's on your mind?"></textarea>
-                <button onclick="createPost()">Post</button>
+                <button type="button" onclick="createPost()">Post</button>
             </div>
 
             <div class="posts" id="posts">
-                <div class="empty-state">No posts yet. Be the first to post!</div>
+                <div class="empty-state">Loading board…</div>
             </div>
         </div>
     </div>
@@ -231,11 +232,16 @@
                 });
                 if (!r.ok) throw new Error('bad status');
                 textarea.value = '';
+                textarea.blur();
                 loadPosts();
             } catch (e) {
                 alert("Couldn't post. Try again in a sec.");
             }
         }
+
+        document.getElementById('logoutBtn').addEventListener('click', function(e) {
+            clearBurnerCookie();
+        });
 
         (async function init() {
             const valid = await verifyBurnerCookie();
@@ -253,6 +259,7 @@
 
         document.getElementById('postText').addEventListener('keydown', function(e) {
             if (e.key === 'Enter' && e.ctrlKey) {
+                e.preventDefault();
                 createPost();
             }
         });

@@ -22,7 +22,10 @@ fi
 
 # Install packages (AP stack only — LED lib installed separately; see install_rpi_ws281x)
 sudo apt update
-sudo apt install -y hostapd dnsmasq lighttpd python3 iptables
+sudo apt install -y hostapd dnsmasq lighttpd python3 iptables openssl
+# HTTPS for Android captive probes (modern Android tries https://www.google.com/generate_204 first)
+sudo apt install -y lighttpd-mod-openssl 2>/dev/null || true
+sudo lighty-enable-mod openssl 2>/dev/null || true
 
 # NeoPixel library: apt on Bookworm/Pi OS; pip on trixie where python3-rpi-ws281x is absent
 install_rpi_ws281x() {
@@ -147,11 +150,12 @@ sudo mv /etc/dnsmasq.conf /etc/dnsmasq.conf.backup
 sudo tee /etc/dnsmasq.conf > /dev/null <<EOF
 interface=uap0
 dhcp-range=192.168.4.2,192.168.4.20,255.255.255.0,24h
-# RFC 8908 captive portal URL via DHCP option 114 (Android 11+, iOS 14+)
-# Lets the OS fetch the portal API immediately, bypassing DNS-probe games / Private DNS.
-dhcp-option=114,"http://192.168.4.1/captive-portal-api.json"
+# RFC 8910 captive portal API via DHCP option 114 (Android 11+)
+dhcp-option=114,"http://192.168.4.1/.well-known/captive-portal"
 address=/#/192.168.4.1
+# Manual Android fallback: guests type http://burner-net.com in the browser (not https)
 address=/burner-net.com/192.168.4.1
+address=/www.burner-net.com/192.168.4.1
 # Captive portal detection (explicit; wildcard above catches the rest)
 address=/captive.apple.com/192.168.4.1
 address=/connectivitycheck.gstatic.com/192.168.4.1
@@ -183,7 +187,10 @@ mkdir -p /var/log
 # Manual invocations have no INVOCATION_ID and run immediately.
 if [ -n "${INVOCATION_ID:-}" ] && [ "${AP_BOOT_DELAY_SECS:-0}" -gt 0 ] 2>/dev/null; then
     echo "fake-wifi-ap: boot delay ${AP_BOOT_DELAY_SECS}s (SSH on wlan0 to abort: sudo systemctl stop fake-wifi-ap)" | tee -a "$LOG_FILE"
+    sudo mkdir -p /run/fake-wifi
+    sudo touch /run/fake-wifi/ap-boot-delay
     sleep "$AP_BOOT_DELAY_SECS"
+    sudo rm -f /run/fake-wifi/ap-boot-delay
 fi
 
 list_wlans() {
@@ -380,7 +387,7 @@ fi
 sudo ip addr del 192.168.4.1/24 dev uap0 2>/dev/null || true
 sudo ip link set uap0 down 2>/dev/null || true
 sudo iw dev uap0 del 2>/dev/null || true
-sudo rm -f /run/fake-wifi/ap-phy 2>/dev/null || true
+sudo rm -f /run/fake-wifi/ap-phy /run/fake-wifi/ap-boot-delay 2>/dev/null || true
 echo "AP stopped. Virtual interface uap0 removed."
 echo "Physical wlan is unchanged (still up if NetworkManager/wpa kept it)."
 SCRIPT
@@ -458,7 +465,6 @@ $HTTP["url"] =~ "^/\.well-known/captive-portal$" {
 
 # Serve portal for any other hostname/path (google.com, etc.)
 # Probe paths above must be excluded or rewrite wins and returns 200 + index.html
-# /api/ must be excluded so the mod_proxy block downstream can take over
 $HTTP["url"] !~ "^/(api/|\.well-known/captive-portal|index\.html|generate_204|gen_204|hotspot-detect\.html|library/test/success\.html|ncsi\.txt|connecttest\.txt|captive-portal-api\.json|.*\.(html|css|js|jpg|jpeg|png|gif|ico|json|txt|pdf|svg|woff|woff2|ttf|eot|mp4|webm|map))" {
     url.rewrite-once = (
         "^/(.*)" => "/index.html"
@@ -466,6 +472,33 @@ $HTTP["url"] !~ "^/(api/|\.well-known/captive-portal|index\.html|generate_204|ge
 }
 LIGHTTPD_CAPTIVE
 sudo ln -sf ../conf-available/fake-wifi-captive.conf /etc/lighttpd/conf-enabled/90-fake-wifi-captive.conf
+
+# Self-signed TLS so Android HTTPS connectivity probes (google.com/generate_204) get a
+# redirect instead of connection refused. Cert includes probe hostnames + 192.168.4.1.
+sudo mkdir -p /etc/lighttpd/certs
+if [ ! -f /etc/lighttpd/certs/burner-net.pem ]; then
+    echo "Generating captive-portal TLS cert (self-signed)..."
+    sudo openssl req -new -x509 -nodes -days 3650 \
+        -keyout /tmp/fake-wifi-key.pem -out /tmp/fake-wifi-cert.pem \
+        -subj "/CN=burner-net.com" \
+        -addext "subjectAltName=DNS:burner-net.com,DNS:www.burner-net.com,DNS:www.google.com,DNS:connectivitycheck.gstatic.com,DNS:connectivitycheck.android.com,DNS:clients3.google.com,DNS:clients4.google.com,IP:192.168.4.1" \
+        2>/dev/null || sudo openssl req -new -x509 -nodes -days 3650 \
+        -keyout /tmp/fake-wifi-key.pem -out /tmp/fake-wifi-cert.pem \
+        -subj "/CN=www.google.com"
+    sudo sh -c 'cat /tmp/fake-wifi-key.pem /tmp/fake-wifi-cert.pem > /etc/lighttpd/certs/burner-net.pem'
+    sudo chmod 600 /etc/lighttpd/certs/burner-net.pem
+    sudo rm -f /tmp/fake-wifi-key.pem /tmp/fake-wifi-cert.pem
+fi
+sudo tee /etc/lighttpd/conf-available/fake-wifi-ssl.conf > /dev/null <<'LIGHTTPD_SSL'
+# HTTPS for OS captive probes (Android 11+ often probes https://www.google.com/generate_204)
+$SERVER["socket"] == ":443" {
+    ssl.engine  = "enable"
+    ssl.pemfile = "/etc/lighttpd/certs/burner-net.pem"
+}
+LIGHTTPD_SSL
+sudo ln -sf ../conf-available/fake-wifi-ssl.conf /etc/lighttpd/conf-enabled/10-fake-wifi-ssl.conf
+sudo lighty-enable-mod openssl 2>/dev/null || true
+
 sudo lighttpd -tt -f /etc/lighttpd/lighttpd.conf
 
 # Add proxy pass for the post board API
@@ -611,6 +644,6 @@ echo ""
 echo "Logs: /var/log/ap-start.log"
 echo ""
 echo "Status LEDs: GPIO18, 4 pixels (wire 1 now, chain more later)"
-echo "  Rainbow = BURNERNET healthy; LED0 red-red flash = backup radio"
-echo "  Yellow pulse = services restarting; Red pulse = AP down"
+echo "  Red flash = boot delay (AP starting soon); solid red = AP down"
+echo "  Rainbow = BURNERNET healthy; LED0 red blip = backup radio (onboard)"
 echo "=========================================="

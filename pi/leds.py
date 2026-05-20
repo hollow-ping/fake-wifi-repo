@@ -2,8 +2,13 @@
 """
 Status LEDs for Fake WiFi (GPIO18, up to 4 NeoPixels).
 
-Priority: down (red pulse) > fixing (yellow pulse) > healthy (rainbow).
-When healthy on fallback radio (not wlan1), LED 0 does a red-red flash every 3s.
+1. BOOT_DELAY — AP boot wait (AP_BOOT_DELAY_SECS): all LEDs flashing red.
+2. OFF_AIR   — Pi on, BURNERNET not broadcasting: all LEDs solid red.
+3. ONBOARD   — Broadcasting on onboard radio (not USB): rainbow + LED 0 red blip / 3s.
+4. USB       — Broadcasting via USB dongle: rainbow only.
+
+Broadcasting = uap0 present, hostapd + dnsmasq active.
+USB vs onboard comes from /run/fake-wifi/ap-phy (same phy start-ap.sh chose).
 """
 
 from __future__ import annotations
@@ -26,26 +31,24 @@ LED_COUNT = 4
 MAX_BRIGHTNESS = int(os.environ.get("FAKE_WIFI_LED_BRIGHTNESS", "64"))  # ~25%
 
 AP_PHY_FILE = "/run/fake-wifi/ap-phy"
+BOOT_DELAY_FLAG = "/run/fake-wifi/ap-boot-delay"
 POLL_INTERVAL = 0.5
 FRAME_INTERVAL = 0.02
 
 RAINBOW_CYCLE_SEC = 12.0
-HUE_SPACING = 0.22  # hue offset between adjacent LEDs
-PULSE_CYCLE_SEC = 2.5
+HUE_SPACING = 0.22
+ONBOARD_BLIP_INTERVAL = 3.0
+ONBOARD_BLIP_SEC = 0.12
+BOOT_DELAY_FLASH_SEC = 0.8
 
-BACKUP_FLASH_INTERVAL = 3.0
-BACKUP_FLASH_ON_SEC = 0.12
-BACKUP_FLASH_GAP_SEC = 0.08
-
-TRANSITIONAL_STATES = frozenset(
-    {"activating", "deactivating", "reloading", "refreshing"}
-)
+OFF_AIR_RGB = (255, 0, 0)
 
 
-class HealthState(Enum):
-    DOWN = auto()
-    FIXING = auto()
-    HEALTHY = auto()
+class LedMode(Enum):
+    BOOT_DELAY = auto()
+    OFF_AIR = auto()
+    ONBOARD = auto()
+    USB = auto()
 
 
 def hsv_to_rgb(h: float, s: float, v: float) -> tuple[int, int, int]:
@@ -88,6 +91,10 @@ def uap0_exists() -> bool:
     return os.path.isdir("/sys/class/net/uap0")
 
 
+def is_boot_delay() -> bool:
+    return os.path.isfile(BOOT_DELAY_FLAG)
+
+
 def read_ap_phy() -> str:
     try:
         with open(AP_PHY_FILE, encoding="utf-8") as f:
@@ -96,19 +103,21 @@ def read_ap_phy() -> str:
         return ""
 
 
-def is_backup_mode() -> bool:
-    phy = read_ap_phy()
-    return bool(phy) and phy != "wlan1"
+def is_usb_phy(iface: str) -> bool:
+    """True if iface is a USB wlan (matches start-ap.sh is_usb_wlan)."""
+    if not iface or not os.path.isdir(f"/sys/class/net/{iface}"):
+        return False
+    device = f"/sys/class/net/{iface}/device"
+    if not os.path.exists(device):
+        return False
+    try:
+        subsystem = os.path.realpath(os.path.join(device, "subsystem"))
+    except OSError:
+        return False
+    return "usb" in subsystem
 
 
-def is_transitional() -> bool:
-    for unit in ("hostapd", "dnsmasq"):
-        if service_active_state(unit) in TRANSITIONAL_STATES:
-            return True
-    return False
-
-
-def is_healthy() -> bool:
+def is_broadcasting() -> bool:
     if not uap0_exists():
         return False
     return (
@@ -117,81 +126,67 @@ def is_healthy() -> bool:
     )
 
 
-def evaluate_health() -> HealthState:
-    if is_transitional():
-        return HealthState.FIXING
-    if is_healthy():
-        return HealthState.HEALTHY
-    if not uap0_exists():
-        return HealthState.DOWN
-    hostapd = service_active_state("hostapd")
-    dnsmasq = service_active_state("dnsmasq")
-    if hostapd in TRANSITIONAL_STATES or dnsmasq in TRANSITIONAL_STATES:
-        return HealthState.FIXING
-    if hostapd == "active" and dnsmasq == "active":
-        return HealthState.HEALTHY
-    if hostapd in ("failed", "inactive") and dnsmasq in ("failed", "inactive"):
-        return HealthState.DOWN
-    return HealthState.FIXING
+def evaluate_mode() -> LedMode:
+    if is_boot_delay():
+        return LedMode.BOOT_DELAY
+    if not is_broadcasting():
+        return LedMode.OFF_AIR
+    if is_usb_phy(read_ap_phy()):
+        return LedMode.USB
+    return LedMode.ONBOARD
 
 
-def pulse_brightness(t: float, cycle: float = PULSE_CYCLE_SEC) -> float:
-    return 0.35 + 0.65 * (0.5 + 0.5 * math.sin(t * 2 * math.pi / cycle))
+def rainbow_brightness(t: float) -> float:
+    return 0.35 + 0.65 * (0.5 + 0.5 * math.sin(t * 2 * math.pi / (RAINBOW_CYCLE_SEC / 2)))
 
 
-def backup_flash_active(t: float) -> bool:
-    phase = t % BACKUP_FLASH_INTERVAL
-    first = phase < BACKUP_FLASH_ON_SEC
-    second = (
-        BACKUP_FLASH_ON_SEC
-        <= phase
-        < BACKUP_FLASH_ON_SEC + BACKUP_FLASH_GAP_SEC + BACKUP_FLASH_ON_SEC
-    ) and phase >= BACKUP_FLASH_ON_SEC + BACKUP_FLASH_GAP_SEC
-    return first or second
+def onboard_blip_active(t: float) -> bool:
+    return (t % ONBOARD_BLIP_INTERVAL) < ONBOARD_BLIP_SEC
 
 
-def frame_rainbow(t: float, backup: bool) -> list[tuple[int, int, int]]:
+def boot_delay_flash_on(t: float) -> bool:
+    phase = t % BOOT_DELAY_FLASH_SEC
+    return phase < BOOT_DELAY_FLASH_SEC / 2
+
+
+def frame_rainbow(t: float, onboard_blip: bool) -> list[tuple[int, int, int]]:
     base_hue = (t / RAINBOW_CYCLE_SEC) % 1.0
-    pulse = pulse_brightness(t, RAINBOW_CYCLE_SEC / 2)
+    pulse = rainbow_brightness(t)
     pixels: list[tuple[int, int, int]] = []
     for i in range(LED_COUNT):
-        if i == 0 and backup and backup_flash_active(t):
-            pixels.append((255, 0, 0))
+        if i == 0 and onboard_blip and onboard_blip_active(t):
+            pixels.append(OFF_AIR_RGB)
             continue
         hue = (base_hue + i * HUE_SPACING) % 1.0
         pixels.append(hsv_to_rgb(hue, 1.0, pulse))
     return pixels
 
 
-def frame_pulse(t: float, hue: float) -> list[tuple[int, int, int]]:
-    v = pulse_brightness(t)
-    rgb = hsv_to_rgb(hue, 1.0, v)
-    return [rgb] * LED_COUNT
-
-
-def render_frame(state: HealthState, t: float) -> list[tuple[int, int, int]]:
-    if state == HealthState.DOWN:
-        return frame_pulse(t, 0.0)  # red
-    if state == HealthState.FIXING:
-        return frame_pulse(t, 0.14)  # yellow (~50deg)
-    return frame_rainbow(t, backup=is_backup_mode())
+def render_frame(mode: LedMode, t: float) -> list[tuple[int, int, int]]:
+    if mode == LedMode.BOOT_DELAY:
+        if boot_delay_flash_on(t):
+            return [OFF_AIR_RGB] * LED_COUNT
+        return [(0, 0, 0)] * LED_COUNT
+    if mode == LedMode.OFF_AIR:
+        return [OFF_AIR_RGB] * LED_COUNT
+    return frame_rainbow(t, onboard_blip=(mode == LedMode.ONBOARD))
 
 
 def main() -> None:
     strip = PixelStrip(LED_COUNT, LED_PIN, brightness=MAX_BRIGHTNESS)
     strip.begin()
 
-    health = HealthState.DOWN
+    mode = LedMode.OFF_AIR
     last_poll = 0.0
 
     try:
         while True:
             now = time.time()
             if now - last_poll >= POLL_INTERVAL:
-                health = evaluate_health()
+                mode = evaluate_mode()
                 last_poll = now
 
-            pixels = render_frame(health, now)
+            pixels = render_frame(mode, now)
             for i, (r, g, b) in enumerate(pixels):
                 strip.setPixelColor(i, Color(r, g, b))
             strip.show()

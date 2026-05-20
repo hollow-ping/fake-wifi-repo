@@ -31,7 +31,7 @@ function checkDeviceState() {
 
 // Get the stored burner name. Only trust after verifyBurnerCookie() on protected pages.
 function getBurnerName() {
-    return localStorage.getItem("burnerName") || "User";
+    return localStorage.getItem("burnerName") || "";
 }
 
 // Set burner name only (legacy/debug). For commit use commitBurnerName() which signs.
@@ -51,10 +51,8 @@ function clearBurnerCookie() {
 
 async function signBurnerCookie(name) {
     // crypto.subtle requires a secure context (HTTPS or localhost). On the Pi
-    // captive portal at http://192.168.4.1 it's undefined — fall back to a
-    // deterministic non-crypto tag so the cookie still pairs with itself.
-    // Cookie spoofing protection was always nominal (any localStorage editor
-    // could already lie), so this is an acceptable downgrade.
+    // captive portal at http://192.168.4.1 it is unavailable — use a matching
+    // deterministic fallback so commit/verify still work over plain HTTP.
     if (!self.isSecureContext || !window.crypto || !window.crypto.subtle) {
         return 'plain:' + btoa(unescape(encodeURIComponent(BURNER_COOKIE_SECRET + ':' + name)));
     }
@@ -107,7 +105,7 @@ async function commitBurnerName() {
 
 // Get burner name during account creation (checks temp first, then committed)
 function getBurnerNameDuringCreation() {
-    return getTempBurnerName() || getBurnerName() || "User";
+    return getTempBurnerName() || getBurnerName() || "";
 }
 
 // Check if user has an account (has burnerName cookie - not temp)

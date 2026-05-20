@@ -62,6 +62,24 @@
         .buttons a:hover {
             background: #e0f6da;
         }
+        .manual-hint {
+            margin-top: 1.75rem;
+            padding: 1rem 1.1rem;
+            background: #f4fbf2;
+            border: 1px solid #b8e0c8;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            line-height: 1.45;
+            text-align: left;
+            color: #444;
+        }
+        .manual-hint strong {
+            color: #189385;
+        }
+        .manual-hint a {
+            color: #189385;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -76,11 +94,16 @@
             <button onclick="window.location.href='create-account/start.html'">Create Account</button>
             <a href="login.html">Login</a>
         </div>
+        <p class="manual-hint" id="manualHint" style="display:none">
+            Still stuck? Tap the <strong>Sign in to network</strong> notification, or open
+            <a href="http://192.168.4.1/">192.168.4.1</a> in your browser.
+        </p>
     </div>
     <script src="js/main.js"></script>
     <script>
-        // Redirect to burner-net.com if on hijacked domain
-        // Allow GitHub Pages domains for testing
+        // On BURNERNET, dnsmasq sends random hosts here; normalize to burner-net.com.
+        // burner-net.com is captive-only (Pi DNS) — not a public website.
+        // Allow github.io for static preview deploys only.
         const targetDomain = 'burner-net.com';
         const currentHost = window.location.hostname;
         const isGitHubPages = currentHost.includes('github.io');
