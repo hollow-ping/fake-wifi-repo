@@ -25,7 +25,7 @@
     {
       "id": "why_burnernet",
       "type": "multi-select",
-      "text": "Why do you need BurnerNet? (select all that apply)",
+      "text": "Why do you need BURNER-NET.COM? (select all that apply)",
       "required": true,
       "options": [
         {"value": "work", "label": "Work"},

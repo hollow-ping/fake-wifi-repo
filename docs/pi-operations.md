@@ -1,8 +1,8 @@
-# Raspberry Pi operations (BURNERNET)
+# Raspberry Pi operations (BURNER-NET.COM)
 
 **Read this when:** the AP vanished after `setup-pi.sh`, captive portal returns wrong HTTP codes, or you are handing off to another LLM mid-debug.
 
-**Hardware (jw1):** Pi Zero 2 W + USB Tenda AIC8800 (`wlan1`). Onboard `wlan0` = home Wi‑Fi / SSH via NetworkManager. AP = virtual **`uap0`** on **`wlan1`**, SSID **`BURNERNET`** (open), portal **`http://192.168.4.1/`**.
+**Hardware (jw1):** Pi Zero 2 W + USB Tenda AIC8800 (`wlan1`). Onboard `wlan0` = home Wi‑Fi / SSH via NetworkManager. AP = virtual **`uap0`** on **`wlan1`**, SSID **`BURNER-NET.COM`** (open), portal **`http://192.168.4.1/`**.
 
 ---
 
@@ -33,7 +33,7 @@ cd ~/fake-wifi-repo && bash setup-pi.sh
 ```
 
 **Setup intentionally:**
-- Runs **`stop-ap.sh`** at the start → **BURNERNET disappears** until you start the AP again.
+- Runs **`stop-ap.sh`** at the start → **BURNER-NET.COM disappears** until you start the AP again.
 - Does **not** `enable` **`fake-wifi-ap.service`** (avoids bricking SSH during install).
 - Writes captive rules to **`/etc/lighttpd/conf-available/fake-wifi-captive.conf`** (enabled via `conf-enabled/90-fake-wifi-captive.conf`).
 - Removes legacy inline captive blocks from **`/etc/lighttpd/lighttpd.conf`** when present.
@@ -53,7 +53,7 @@ On the Pi:
 ```bash
 ip -br a show uap0                    # UP, 192.168.4.1/24
 systemctl is-active hostapd dnsmasq   # both active
-sudo iw dev uap0 info | grep ssid     # BURNERNET
+sudo iw dev uap0 info | grep ssid     # BURNER-NET.COM
 
 curl -sI http://127.0.0.1/generate_204 | head -5
 # MUST be: HTTP/1.1 302 Found
@@ -63,7 +63,7 @@ getent hosts burner-net.com    # 192.168.4.1
 curl -sI -H "Host: burner-net.com" http://127.0.0.1/ | head -3   # 200, portal HTML
 ```
 
-**If phones don’t see BURNERNET:** AP is almost certainly stopped — run step 3, don’t re-run setup unless you need config changes.
+**If phones don’t see BURNER-NET.COM:** AP is almost certainly stopped — run step 3, don’t re-run setup unless you need config changes.
 
 ### 5. Enable AP on boot (optional, after dual-radio is stable)
 
@@ -93,7 +93,7 @@ AP_BOOT_DELAY_SECS=60   # seconds; 0 disables; only applies at boot
 
 ### Abort during the 60s window
 
-If you SSH in during boot and see BURNERNET isn't there yet but you suspect trouble (e.g., `wlan1` missing → fallback imminent):
+If you SSH in during boot and see BURNER-NET.COM isn't there yet but you suspect trouble (e.g., `wlan1` missing → fallback imminent):
 
 ```bash
 sudo systemctl stop fake-wifi-ap          # cancels the pending boot start
@@ -147,7 +147,7 @@ That leaves **orphaned** `$HTTP[...]` fragments and breaks `lighttpd -tt`. Re-ru
 | Network | Command |
 |---------|---------|
 | Home Wi‑Fi | `ssh j@jw1.local` |
-| BURNERNET only | `ssh j@192.168.4.1` (may need `ssh-keygen -R 192.168.4.1` after reflash) |
+| BURNER-NET.COM only | `ssh j@192.168.4.1` (may need `ssh-keygen -R 192.168.4.1` after reflash) |
 
 Recovery if `wlan0` is broken: `bash ~/fake-wifi-repo/pi/recover-network.sh`
 
@@ -182,7 +182,7 @@ After changing `setup-pi.sh`: rsync → `bash setup-pi.sh` → `sudo start-ap.sh
 
 ## Android instructions (copy to guests — fallback only)
 
-1. Join **`BURNERNET`** (no password).
+1. Join **`BURNER-NET.COM`** (no password).
 2. Look for **Sign in to network** (notification or popup) and tap it.
 3. If nothing: **Private DNS → Off**, forget network, rejoin.
 4. Last resort: open **`http://192.168.4.1/`** in the browser address bar.

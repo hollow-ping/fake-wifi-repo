@@ -89,10 +89,10 @@
         <h1>Login</h1>
         <form id="loginForm">
             <label>Playa Name:</label>
-            <input type="text" id="burnerName" required>
+            <input type="text" id="burnerName" autocomplete="username" readonly required>
             
             <label>Password:</label>
-            <input type="password" id="password" placeholder="••••••••" required>
+            <input type="password" id="password" autocomplete="current-password" placeholder="••••••••" required>
             
             <button type="submit" id="loginBtn">Login</button>
             <div id="formError" class="error-message"></div>
@@ -107,6 +107,15 @@
     <script>
         const RECOGNIZE_DELAY_MS = 1000;
         let autoLoginTimer = null;
+        let recognizedSession = false;
+
+        function unlockPlayaNameField() {
+            if (recognizedSession) return;
+            const el = document.getElementById('burnerName');
+            if (!el.readOnly) return;
+            el.readOnly = false;
+            el.tabIndex = 0;
+        }
 
         function cancelAutoLogin() {
             if (autoLoginTimer) {
@@ -153,12 +162,16 @@
             const passwordEl = document.getElementById('password');
             const valid = await verifyBurnerCookie();
             const storedName = localStorage.getItem('burnerName');
-            if (!valid || !storedName) return;
+            if (!valid || !storedName) {
+                if (document.activeElement === burnerNameEl) burnerNameEl.blur();
+                return;
+            }
 
+            recognizedSession = true;
             burnerNameEl.value = storedName;
             burnerNameEl.readOnly = true;
+            burnerNameEl.tabIndex = -1;
             passwordEl.placeholder = '••••••••';
-            passwordEl.focus();
 
             autoLoginTimer = setTimeout(() => {
                 autoLoginTimer = null;
@@ -166,9 +179,12 @@
             }, RECOGNIZE_DELAY_MS);
         })();
 
-        document.getElementById('burnerName').addEventListener('input', () => {
+        const burnerNameEl = document.getElementById('burnerName');
+        burnerNameEl.addEventListener('pointerdown', unlockPlayaNameField);
+        burnerNameEl.addEventListener('focus', unlockPlayaNameField);
+        burnerNameEl.addEventListener('input', () => {
             cancelAutoLogin();
-            document.getElementById('burnerName').readOnly = false;
+            unlockPlayaNameField();
         });
 
         document.getElementById('loginForm').addEventListener('submit', async function(e) {

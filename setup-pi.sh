@@ -131,7 +131,7 @@ sudo find /var/www/html -type f -exec chmod 644 {} \;
 sudo tee /etc/hostapd/hostapd.conf > /dev/null <<EOF
 interface=uap0
 driver=nl80211
-ssid=BURNERNET
+ssid=BURNER-NET.COM
 country_code=US
 hw_mode=g
 channel=7
@@ -353,15 +353,15 @@ resolve_ap_phys() {
     
     echo ""
     echo "=========================================="
-    echo "AP started! SSID: BURNERNET"
+    echo "AP started! SSID: BURNER-NET.COM"
     echo ""
     if is_usb_wlan "$PHY"; then
-        echo "uap0 on $PHY broadcasts BURNERNET (USB antenna)."
+        echo "uap0 on $PHY broadcasts BURNER-NET.COM (USB antenna)."
         echo "wlan0: home Wi-Fi / SSH via NetworkManager."
-        echo "Or join BURNERNET and SSH to j@192.168.4.1"
+        echo "Or join BURNER-NET.COM and SSH to j@192.168.4.1"
     else
-        echo "uap0 on $PHY broadcasts BURNERNET (onboard radio, STA+AP)."
-        echo "SSH via home Wi-Fi on $PHY OR join BURNERNET and SSH to j@192.168.4.1"
+        echo "uap0 on $PHY broadcasts BURNER-NET.COM (onboard radio, STA+AP)."
+        echo "SSH via home Wi-Fi on $PHY OR join BURNER-NET.COM and SSH to j@192.168.4.1"
     fi
     echo ""
     echo "To check status: sudo systemctl status hostapd"
@@ -555,7 +555,7 @@ fi
 # Create systemd service for auto-starting AP on boot
 sudo tee /etc/systemd/system/fake-wifi-ap.service > /dev/null <<'SERVICE'
 [Unit]
-Description=Fake WiFi Access Point (BURNERNET)
+Description=Fake WiFi Access Point (BURNER-NET.COM)
 After=network-online.target networking.service
 Wants=network-online.target
 
@@ -635,7 +635,7 @@ echo "  sudo stop-ap.sh"
 echo "  view-ap-log.sh"
 echo ""
 echo "Two modes (when AP runs):"
-echo "  USB dongle present: wlan0 = home Wi-Fi / SSH, wlan1 = BURNERNET AP (uap0)"
+echo "  USB dongle present: wlan0 = home Wi-Fi / SSH, wlan1 = BURNER-NET.COM AP (uap0)"
 echo "  No USB dongle:      wlan0 = STA+AP on one radio (fallback)"
 echo ""
 echo "Config: sudo nano /etc/fake-wifi/ap.conf"
@@ -645,5 +645,5 @@ echo "Logs: /var/log/ap-start.log"
 echo ""
 echo "Status LEDs: GPIO18, 4 pixels (wire 1 now, chain more later)"
 echo "  Red flash = boot delay (AP starting soon); solid red = AP down"
-echo "  Rainbow = BURNERNET healthy; LED0 red blip = backup radio (onboard)"
+echo "  Rainbow = BURNER-NET.COM healthy; LED0 red blip = backup radio (onboard)"
 echo "=========================================="

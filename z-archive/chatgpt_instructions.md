@@ -125,7 +125,7 @@ The captive portal redirects here automatically.
 Logic:
 	•	If localStorage.hasIntranetAccess === "true" → instantly redirect to intranet/index.html
 	•	Otherwise show:
-	•	Retro header: “BURNERNET AUTH PORTAL”
+	•	Retro header: “BURNER-NET.COM AUTH PORTAL”
 	•	Button: [Create Account] → create.html
 
 ⸻
@@ -177,7 +177,7 @@ On override click: → queue.html
 The highlight of this experience.
 
 UI:
-	•	Title: “BURNERNET AUTH QUEUE”
+	•	Title: “BURNER-NET.COM AUTH QUEUE”
 	•	Big text:
 
 You are in place #1,406 in the login queue.

@@ -3,7 +3,7 @@
 Status LEDs for Fake WiFi (GPIO18, up to 4 NeoPixels).
 
 1. BOOT_DELAY — AP boot wait (AP_BOOT_DELAY_SECS): all LEDs flashing red.
-2. OFF_AIR   — Pi on, BURNERNET not broadcasting: all LEDs solid red.
+2. OFF_AIR   — Pi on, BURNER-NET.COM not broadcasting: all LEDs solid red.
 3. ONBOARD   — Broadcasting on onboard radio (not USB): rainbow + LED 0 red blip / 3s.
 4. USB       — Broadcasting via USB dongle: rainbow only.
 

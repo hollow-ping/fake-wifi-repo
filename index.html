@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BURNERNET AUTH PORTAL</title>
+    <title>BURNER-NET.COM AUTH PORTAL</title>
     <style>
         /* Corporate auth portal theme - Clean blue/white */
         body {
@@ -86,10 +86,10 @@
     <!--
       index.html - Splash Screen
       Purpose: The captive portal redirects here.
-      Logic: Show "BURNERNET AUTH PORTAL" and [Create Account] → create-account/start.html
+      Logic: Show "BURNER-NET.COM AUTH PORTAL" and [Create Account] → create-account/start.html
     -->
     <div class="container">
-        <h1>BURNERNET AUTH PORTAL</h1>
+        <h1>BURNER-NET.COM AUTH PORTAL</h1>
         <div class="buttons">
             <button onclick="window.location.href='create-account/start.html'">Create Account</button>
             <a href="login.html">Login</a>
@@ -101,7 +101,7 @@
     </div>
     <script src="js/main.js"></script>
     <script>
-        // On BURNERNET, dnsmasq sends random hosts here; normalize to burner-net.com.
+        // On BURNER-NET.COM, dnsmasq sends random hosts here; normalize to burner-net.com.
         // burner-net.com is captive-only (Pi DNS) — not a public website.
         // Allow github.io for static preview deploys only.
         const targetDomain = 'burner-net.com';
