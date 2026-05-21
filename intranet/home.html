@@ -310,7 +310,7 @@
         document.getElementById('cancelPostBtn').addEventListener('click', hidePostConfirm);
 
         document.getElementById('logoutBtn').addEventListener('click', function(e) {
-            clearBurnerCookie();
+            // Don't clear the cookie — just navigate back so login can still recognize them
         });
 
         (async function init() {

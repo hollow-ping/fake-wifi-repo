@@ -20,55 +20,80 @@
         .container {
             text-align: center;
             padding: 2rem;
+            max-width: 720px;
+            width: 100%;
         }
         h1 {
             font-size: 2.5rem;
-            margin-bottom: 2rem;
+            margin-bottom: 0.25rem;
+        }
+        .sponsored-by {
+            font-size: 0.95rem;
+            opacity: 0.85;
+            margin-bottom: 1.25rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
         }
         .ad-content {
-            background: rgba(255,255,255,0.1);
-            padding: 2rem;
             border-radius: 8px;
-            margin: 2rem 0;
-            min-height: 300px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
+            overflow: hidden;
+            margin: 0 0 1.5rem 0;
+        }
+        .ad-content img {
+            width: 100%;
+            height: auto;
+            display: block;
         }
         .skip-button {
-            margin-top: 2rem;
+            margin-top: 1rem;
         }
         button {
-            padding: 1rem 2rem;
+            padding: 0.85rem 2rem;
             background: rgba(255,255,255,0.2);
             color: white;
             border: 2px solid white;
             border-radius: 5px;
             cursor: pointer;
             font-size: 1.1rem;
+            transition: background 0.2s;
         }
-        button:hover {
-            background: rgba(255,255,255,0.3);
+        button:not(:disabled):hover {
+            background: rgba(255,255,255,0.35);
+        }
+        button:disabled {
+            opacity: 0.55;
+            cursor: default;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>BURNER-NET.COM AUTH QUEUE</h1>
+        <h1><em>BURNER-NET</em></h1>
+        <div class="sponsored-by">Sponsored By:</div>
         <div class="ad-content">
-            <div>Watch this ad to continue...</div>
+            <img id="adImg" src="" alt="Ad">
         </div>
         <div class="skip-button">
-            <button onclick="window.location.href='sparkle-pony.html'">Skip Ad</button>
+            <button id="skipBtn" disabled>Skip ad in 4</button>
         </div>
     </div>
     <script>
-        // Auto-redirect after 3 seconds
-        setTimeout(() => {
-            window.location.href = 'sparkle-pony.html';
-        }, 3000);
+        const ads = ['ads/ad1.jpg', 'ads/ad2.jpg', 'ads/ad3.jpg'];
+        document.getElementById('adImg').src = ads[Math.floor(Math.random() * ads.length)];
+
+        let countdown = 4;
+        const btn = document.getElementById('skipBtn');
+        const timer = setInterval(() => {
+            countdown--;
+            if (countdown > 0) {
+                btn.textContent = 'Skip ad in ' + countdown;
+            } else {
+                clearInterval(timer);
+                btn.textContent = 'Skip Ad';
+                btn.disabled = false;
+                btn.onclick = () => window.location.href = 'sparkle-pony.html';
+            }
+        }, 1000);
     </script>
 </body>
 </html>
-
