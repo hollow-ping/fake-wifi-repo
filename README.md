@@ -70,7 +70,7 @@ Once deployed, you can:
 The `index.html` file has been configured to work on GitHub Pages:
 - Domain redirect logic allows `github.io` domains
 - Also allows local IP addresses (`192.168.4.1`) for local testing
-- On **BURNERNET** only, dnsmasq resolves `burner-net.com` → `192.168.4.1` (fake DNS — no real public site; do not register the domain on the internet)
+- On **BURNER-NET.COM** only, dnsmasq resolves `burner-net.com` → `192.168.4.1` (fake DNS — no real public site; do not register the domain on the internet)
 - Guests who type the name may need **`http://`** explicitly; the Pi does not serve HTTPS today (see `docs/pi-operations.md`)
 
 ### File Structure
@@ -98,6 +98,16 @@ All paths in the project use relative URLs, which work correctly on GitHub Pages
 
 # Sync Macbook to Pi
 
-`rsync -avz --exclude='.git' --exclude='.DS_Store' --exclude='.vscode' --exclude='.idea' /Users/john/Documents/Projects/fake-wifi/fake-wifi-repo/ j@jp6.local:~/fake-wifi-repo/`
+```bash
+rsync -avz \
+  --exclude='.git' \
+  --exclude='.DS_Store' \
+  --exclude='z-archive' \
+  --exclude='.claude' \
+  "/Users/john/Documents/Projects/Fake Wifi/fake-wifi-repo/" \
+  j@jw1.local:~/fake-wifi-repo/
+```
+
+See `docs/pi-operations.md` for copying files into `/var/www/html/` after rsync.
 
 

@@ -83,6 +83,40 @@
         .post-form button:hover {
             background: rgba(57, 255, 20, 0.3);
         }
+        .post-form button:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+        .post-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 0.5rem;
+        }
+        .post-confirm {
+            display: none;
+            margin-top: 0.75rem;
+            padding: 0.75rem;
+            border: 1px dashed #39ff14;
+            background: rgba(57, 255, 20, 0.08);
+        }
+        .post-confirm.active {
+            display: block;
+        }
+        .post-confirm p {
+            margin: 0 0 0.75rem 0;
+            font-size: 0.95rem;
+        }
+        .post-confirm-preview {
+            margin: 0 0 0.75rem 0;
+            padding: 0.5rem;
+            border: 1px solid rgba(57, 255, 20, 0.4);
+            white-space: pre-wrap;
+            word-break: break-word;
+            opacity: 0.9;
+            max-height: 6rem;
+            overflow: hidden;
+        }
         .posts {
             margin-top: 2rem;
         }
@@ -131,7 +165,17 @@
                 <h2 style="margin-top: 0;">New Post</h2>
                 <div class="post-author-label" id="postingAs">[Playa Name]:</div>
                 <textarea id="postText" placeholder="What's on your mind?"></textarea>
-                <button type="button" onclick="createPost()">Post</button>
+                <div class="post-actions">
+                    <button type="button" id="postBtn">Post</button>
+                </div>
+                <div class="post-confirm" id="postConfirm">
+                    <p>Post this message?</p>
+                    <div class="post-confirm-preview" id="postConfirmPreview"></div>
+                    <div class="post-actions">
+                        <button type="button" id="confirmPostBtn">Confirm</button>
+                        <button type="button" id="cancelPostBtn">Cancel</button>
+                    </div>
+                </div>
             </div>
 
             <div class="posts" id="posts">
@@ -220,10 +264,29 @@
             renderPosts(data);
         }
 
-        async function createPost() {
+        function hidePostConfirm() {
+            document.getElementById('postConfirm').classList.remove('active');
+            document.getElementById('postBtn').disabled = false;
+        }
+
+        function showPostConfirm() {
             const textarea = document.getElementById('postText');
             const content = textarea.value.trim();
             if (!content) return;
+            document.getElementById('postConfirmPreview').textContent = content;
+            document.getElementById('postConfirm').classList.add('active');
+            document.getElementById('postBtn').disabled = true;
+        }
+
+        async function submitPost() {
+            const textarea = document.getElementById('postText');
+            const content = textarea.value.trim();
+            if (!content) {
+                hidePostConfirm();
+                return;
+            }
+            const confirmBtn = document.getElementById('confirmPostBtn');
+            confirmBtn.disabled = true;
             try {
                 const r = await fetch('/api/posts', {
                     method: 'POST',
@@ -232,12 +295,19 @@
                 });
                 if (!r.ok) throw new Error('bad status');
                 textarea.value = '';
+                hidePostConfirm();
                 textarea.blur();
                 loadPosts();
             } catch (e) {
                 alert("Couldn't post. Try again in a sec.");
+            } finally {
+                confirmBtn.disabled = false;
             }
         }
+
+        document.getElementById('postBtn').addEventListener('click', showPostConfirm);
+        document.getElementById('confirmPostBtn').addEventListener('click', submitPost);
+        document.getElementById('cancelPostBtn').addEventListener('click', hidePostConfirm);
 
         document.getElementById('logoutBtn').addEventListener('click', function(e) {
             clearBurnerCookie();
@@ -257,12 +327,7 @@
             setInterval(loadPosts, 5000);
         })();
 
-        document.getElementById('postText').addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && e.ctrlKey) {
-                e.preventDefault();
-                createPost();
-            }
-        });
+        document.getElementById('postText').addEventListener('input', hidePostConfirm);
     </script>
 </body>
 </html>
