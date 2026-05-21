@@ -27,9 +27,17 @@
             font-size: 2.5rem;
             margin-bottom: 1.5rem;
         }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
         .walking-man {
             font-size: 3rem;
             margin: 0.5rem 0 1.25rem;
+            display: inline-block;
+            animation: spin 0.75s linear infinite;
+            animation-delay: 2.5s;
+            animation-fill-mode: none;
         }
         .queue-stage {
             position: relative;
@@ -80,7 +88,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>BURNER-NET.COM AUTH QUEUE</h1>
+        <h1><em>BURNER-NET</em> AUTH QUEUE</h1>
         <div class="walking-man">🚶</div>
 
         <div class="queue-stage">

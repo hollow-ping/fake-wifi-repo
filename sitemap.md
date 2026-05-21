@@ -4,7 +4,7 @@ config:
   layout: dagre
 ---
 flowchart TB
-    n1["BURNER-NET.COM AUTH PORTAL"] -- Create Account --> n2["Create Account: username"]
+    n1["BURNER-NET AUTH PORTAL"] -- Create Account --> n2["Create Account: username"]
     n1 -- Login --> n3(["Login Cookie?"])
     n3 -- No --> n4["Login"]
     n3 -- Yes --> n5["Login confirmation"]
