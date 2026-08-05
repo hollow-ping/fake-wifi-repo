@@ -4,10 +4,10 @@ Status LEDs for Fake WiFi (GPIO18, up to 4 NeoPixels).
 
 1. BOOT_DELAY — AP boot wait (AP_BOOT_DELAY_SECS): all LEDs flashing red.
 2. OFF_AIR   — Pi on, BURNER-NET.COM not broadcasting: all LEDs solid red.
-3. ONBOARD   — Broadcasting on onboard radio (not USB): rainbow + LED 0 red blip / 3s.
-4. USB       — Broadcasting via USB dongle: rainbow only.
+3. ONBOARD   — Broadcasting on onboard radio: green bounce 4s, then rainbow glow 4s (8s loop).
+4. USB       — Broadcasting via USB dongle: white bounce 4s, then rainbow glow 4s (8s loop).
 
-Broadcasting = uap0 present, hostapd + dnsmasq active.
+Broadcasting = uap0 present with 192.168.4.1, hostapd + dnsmasq active.
 USB vs onboard comes from /run/fake-wifi/ap-phy (same phy start-ap.sh chose).
 """
 
@@ -31,17 +31,21 @@ LED_COUNT = 4
 MAX_BRIGHTNESS = int(os.environ.get("FAKE_WIFI_LED_BRIGHTNESS", "64"))  # ~25%
 
 AP_PHY_FILE = "/run/fake-wifi/ap-phy"
+AP_IFACE_FILE = "/run/fake-wifi/ap-iface"
 BOOT_DELAY_FLAG = "/run/fake-wifi/ap-boot-delay"
 POLL_INTERVAL = 0.5
 FRAME_INTERVAL = 0.02
 
-RAINBOW_CYCLE_SEC = 12.0
-HUE_SPACING = 0.22
-ONBOARD_BLIP_INTERVAL = 3.0
-ONBOARD_BLIP_SEC = 0.12
+CYCLE_SEC = 8.0
+BOUNCE_SEC = 4.0
+RAINBOW_SEC = 4.0
+BOUNCE_STEP_SEC = 0.1  # ~6–7 round trips across 4 LEDs in 4s
+RAINBOW_PULSE_SEC = 2.0
 BOOT_DELAY_FLASH_SEC = 0.8
 
 OFF_AIR_RGB = (255, 0, 0)
+GREEN_RGB = (0, 255, 0)
+WHITE_RGB = (255, 255, 255)
 
 
 class LedMode(Enum):
@@ -117,13 +121,46 @@ def is_usb_phy(iface: str) -> bool:
     return "usb" in subsystem
 
 
-def is_broadcasting() -> bool:
-    if not uap0_exists():
+def read_ap_iface() -> str:
+    try:
+        with open(AP_IFACE_FILE, encoding="utf-8") as f:
+            return f.read().strip()
+    except OSError:
+        return ""
+
+
+def iface_has_ap_ip(iface: str) -> bool:
+    if not iface or not os.path.isdir(f"/sys/class/net/{iface}"):
         return False
-    return (
+    try:
+        out = subprocess.run(
+            ["ip", "-4", "-br", "addr", "show", iface],
+            capture_output=True,
+            text=True,
+            timeout=3,
+            check=False,
+        ).stdout
+    except (subprocess.TimeoutExpired, OSError):
+        return False
+    return "192.168.4.1" in out
+
+
+def is_broadcasting() -> bool:
+    iface = read_ap_iface()
+    if not iface:
+        # Legacy: dual-radio used uap0 only
+        iface = "uap0" if uap0_exists() else ""
+    if not iface or not iface_has_ap_ip(iface):
+        return False
+    hostapd_ok = (
         service_active_state("hostapd") == "active"
-        and service_active_state("dnsmasq") == "active"
+        or bool(run(["pgrep", "-x", "hostapd"]))
     )
+    dnsmasq_ok = (
+        service_active_state("dnsmasq") == "active"
+        or bool(run(["pgrep", "-x", "dnsmasq"]))
+    )
+    return hostapd_ok and dnsmasq_ok
 
 
 def evaluate_mode() -> LedMode:
@@ -136,30 +173,42 @@ def evaluate_mode() -> LedMode:
     return LedMode.ONBOARD
 
 
-def rainbow_brightness(t: float) -> float:
-    return 0.35 + 0.65 * (0.5 + 0.5 * math.sin(t * 2 * math.pi / (RAINBOW_CYCLE_SEC / 2)))
-
-
-def onboard_blip_active(t: float) -> bool:
-    return (t % ONBOARD_BLIP_INTERVAL) < ONBOARD_BLIP_SEC
-
-
 def boot_delay_flash_on(t: float) -> bool:
     phase = t % BOOT_DELAY_FLASH_SEC
     return phase < BOOT_DELAY_FLASH_SEC / 2
 
 
-def frame_rainbow(t: float, onboard_blip: bool) -> list[tuple[int, int, int]]:
-    base_hue = (t / RAINBOW_CYCLE_SEC) % 1.0
-    pulse = rainbow_brightness(t)
-    pixels: list[tuple[int, int, int]] = []
-    for i in range(LED_COUNT):
-        if i == 0 and onboard_blip and onboard_blip_active(t):
-            pixels.append(OFF_AIR_RGB)
-            continue
-        hue = (base_hue + i * HUE_SPACING) % 1.0
-        pixels.append(hsv_to_rgb(hue, 1.0, pulse))
-    return pixels
+def bounce_index(t_in_bounce: float) -> int:
+    """Ping-pong index across 0..LED_COUNT-1."""
+    if LED_COUNT <= 1:
+        return 0
+    path_len = 2 * (LED_COUNT - 1)  # e.g. 0,1,2,3,2,1
+    step = int(t_in_bounce / BOUNCE_STEP_SEC) % path_len
+    if step < LED_COUNT:
+        return step
+    return path_len - step
+
+
+def frame_bounce(t_in_bounce: float, color: tuple[int, int, int]) -> list[tuple[int, int, int]]:
+    idx = bounce_index(t_in_bounce)
+    return [color if i == idx else (0, 0, 0) for i in range(LED_COUNT)]
+
+
+def frame_rainbow_glow(t_in_rainbow: float) -> list[tuple[int, int, int]]:
+    """All LEDs same slowly shifting hue, soft brightness pulse."""
+    hue = (t_in_rainbow / RAINBOW_SEC) % 1.0
+    pulse = 0.35 + 0.65 * (
+        0.5 + 0.5 * math.sin(t_in_rainbow * 2 * math.pi / RAINBOW_PULSE_SEC)
+    )
+    rgb = hsv_to_rgb(hue, 1.0, pulse)
+    return [rgb] * LED_COUNT
+
+
+def frame_broadcast(t: float, bounce_color: tuple[int, int, int]) -> list[tuple[int, int, int]]:
+    phase = t % CYCLE_SEC
+    if phase < BOUNCE_SEC:
+        return frame_bounce(phase, bounce_color)
+    return frame_rainbow_glow(phase - BOUNCE_SEC)
 
 
 def render_frame(mode: LedMode, t: float) -> list[tuple[int, int, int]]:
@@ -169,7 +218,9 @@ def render_frame(mode: LedMode, t: float) -> list[tuple[int, int, int]]:
         return [(0, 0, 0)] * LED_COUNT
     if mode == LedMode.OFF_AIR:
         return [OFF_AIR_RGB] * LED_COUNT
-    return frame_rainbow(t, onboard_blip=(mode == LedMode.ONBOARD))
+    if mode == LedMode.ONBOARD:
+        return frame_broadcast(t, GREEN_RGB)
+    return frame_broadcast(t, WHITE_RGB)
 
 
 def main() -> None:

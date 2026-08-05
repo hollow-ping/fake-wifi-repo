@@ -77,7 +77,7 @@ sudo systemctl enable --now fake-wifi-ap.service
 
 When `fake-wifi-ap.service` is enabled, `start-ap.sh` **sleeps for `AP_BOOT_DELAY_SECS` (default 60s) at boot only** before touching any interface. This is your SSH recovery window.
 
-**Why it exists:** if `wlan1` (USB dongle) fails to appear at boot — e.g., dongle unplugged, AIC8800 DKMS broken after a kernel update — `start-ap.sh` falls back to single-radio mode on **`wlan0`**, which can disrupt home Wi‑Fi and lock you out. The delay gives you 60s to SSH in and abort before that happens.
+**Why it exists:** without a USB dongle, `start-ap.sh` runs **onboard AP-only** (releases NetworkManager on `wlan0`, home Wi‑Fi drops until `stop-ap.sh`). The delay gives you time to SSH in and abort before that happens. With USB present, home Wi‑Fi stays up.
 
 **Configuration** in `/etc/fake-wifi/ap.conf`:
 
@@ -93,7 +93,7 @@ AP_BOOT_DELAY_SECS=60   # seconds; 0 disables; only applies at boot
 
 ### Abort during the 60s window
 
-If you SSH in during boot and see BURNER-NET.COM isn't there yet but you suspect trouble (e.g., `wlan1` missing → fallback imminent):
+If you SSH in during boot and see BURNER-NET.COM isn't there yet but you want to keep home Wi‑Fi (e.g. no USB today and you need `jw1.local`):
 
 ```bash
 sudo systemctl stop fake-wifi-ap          # cancels the pending boot start
@@ -194,8 +194,9 @@ After changing `setup-pi.sh`: rsync → `bash setup-pi.sh` → `sudo start-ap.sh
 | File | Role |
 |------|------|
 | `setup-pi.sh` | Installer: packages, `/var/www/html`, hostapd, dnsmasq, lighttpd captive drop-in, `start-ap.sh` |
-| `pi/ap.conf` → `/etc/fake-wifi/ap.conf` | `AP_PHYS=auto`, USB preferred, `AP_BOOT_DELAY_SECS=60` |
-| `/usr/local/bin/start-ap.sh` | Creates `uap0`, starts hostapd + dnsmasq |
+| `pi/ap.conf` → `/etc/fake-wifi/ap.conf` | `AP_PHYS=auto`, USB preferred, `AP_BOOT_DELAY_SECS` |
+| `pi/start-ap.sh` → `/usr/local/bin/start-ap.sh` | Creates `uap0`, starts hostapd + dnsmasq; onboard = AP-only |
+| `pi/stop-ap.sh` → `/usr/local/bin/stop-ap.sh` | Tears down AP; restores saved home Wi‑Fi after onboard mode |
 | `pi/recover-network.sh` | NM recovery for `wlan0` |
 | `captive-portal-files/` | `ncsi.txt`, `connecttest.txt`, `captive-portal-api.json`, etc. |
 
@@ -211,4 +212,4 @@ When continuing work on this repo:
 4. Rsync **before** setup if `setup-pi.sh` changed on Mac.
 5. Don’t enable broad NetworkManager `unmanaged-devices` rules (bricked `wlan0` historically — setup only unmanagers `wlan1`).
 6. Guest Android issues → **Private DNS** first, then manual portal URL.
-7. **`AP_BOOT_DELAY_SECS`** in `/etc/fake-wifi/ap.conf` is the SSH recovery window — only fires under systemd, not on manual `start-ap.sh`. If a user reports "AP took a minute to come up after reboot" that's expected.
+7. **`AP_BOOT_DELAY_SECS`** in `/etc/fake-wifi/ap.conf` is the SSH recovery window — only fires under systemd, not on manual `start-ap.sh`. If a user reports "AP took a minute to come up after reboot" that's expected. Without USB, onboard AP-only drops home Wi‑Fi until `stop-ap.sh`.
