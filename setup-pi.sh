@@ -171,227 +171,13 @@ address=/network-test.debian.org/192.168.4.1
 address=/detectportal.firefox.com/192.168.4.1
 EOF
 
-# Create start/stop scripts
-sudo tee /usr/local/bin/start-ap.sh > /dev/null <<'SCRIPT'
-#!/bin/bash
-set -e
-
-LOG_FILE="/var/log/ap-start.log"
-mkdir -p /var/log
-
-# shellcheck source=/dev/null
-[ -f /etc/fake-wifi/ap.conf ] && . /etc/fake-wifi/ap.conf
-
-# Boot-only delay: when started by systemd at boot, sleep so the user has a
-# window to SSH in over wlan0 and disable the AP if something is wrong.
-# Manual invocations have no INVOCATION_ID and run immediately.
-if [ -n "${INVOCATION_ID:-}" ] && [ "${AP_BOOT_DELAY_SECS:-0}" -gt 0 ] 2>/dev/null; then
-    echo "fake-wifi-ap: boot delay ${AP_BOOT_DELAY_SECS}s (SSH on wlan0 to abort: sudo systemctl stop fake-wifi-ap)" | tee -a "$LOG_FILE"
-    sudo mkdir -p /run/fake-wifi
-    sudo touch /run/fake-wifi/ap-boot-delay
-    sleep "$AP_BOOT_DELAY_SECS"
-    sudo rm -f /run/fake-wifi/ap-boot-delay
+# Install start/stop scripts (pi/start-ap.sh, pi/stop-ap.sh)
+if [ ! -f "$SCRIPT_DIR/pi/start-ap.sh" ] || [ ! -f "$SCRIPT_DIR/pi/stop-ap.sh" ]; then
+    echo "ERROR: missing $SCRIPT_DIR/pi/start-ap.sh or stop-ap.sh" >&2
+    exit 1
 fi
-
-list_wlans() {
-    local i
-    for i in $(ls /sys/class/net 2>/dev/null | grep -E '^wlan[0-9]+$' | sort -V); do
-        echo "$i"
-    done
-}
-
-is_usb_wlan() {
-    local iface=$1 subs
-    [ -e "/sys/class/net/$iface" ] || return 1
-    subs=$(readlink -f "/sys/class/net/$iface/device/subsystem" 2>/dev/null) || return 1
-    [[ "$subs" == *usb* ]] && return 0
-    return 1
-}
-
-find_usb_wlan() {
-    local w
-    for w in $(list_wlans); do
-        is_usb_wlan "$w" && { echo "$w"; return 0; }
-    done
-    return 1
-}
-
-wait_for_usb_wlan() {
-    local w secs=${AP_PHYS_WAIT_SECS:-15} elapsed=0
-    if [ "$secs" -le 0 ] 2>/dev/null; then
-        find_usb_wlan
-        return $?
-    fi
-    while [ "$elapsed" -lt "$secs" ]; do
-        w=$(find_usb_wlan) && { echo "$w"; return 0; }
-        sleep 1
-        elapsed=$((elapsed + 1))
-    done
-    return 1
-}
-
-resolve_ap_phys() {
-    local w
-    if [ -n "${AP_PHYS:-}" ] && [ "$AP_PHYS" != "auto" ]; then
-        if [ -e "/sys/class/net/$AP_PHYS" ]; then
-            echo "$AP_PHYS"
-            return 0
-        fi
-        if is_usb_wlan "$AP_PHYS" 2>/dev/null || [ "$AP_PHYS" = "wlan1" ]; then
-            echo "ERROR: AP_PHYS=$AP_PHYS (USB radio) not found — check dongle and aic8800 driver" >&2
-        else
-            echo "ERROR: AP_PHYS=$AP_PHYS but /sys/class/net/$AP_PHYS not found" >&2
-        fi
-        return 1
-    fi
-    case "${AP_PHYS_PREFER:-usb}" in
-        usb)
-            w=$(wait_for_usb_wlan) && { echo "$w"; return 0; }
-            echo "No USB wlan after ${AP_PHYS_WAIT_SECS:-15}s wait; falling back to onboard radio" >&2
-            for w in $(list_wlans); do
-                if ! is_usb_wlan "$w"; then echo "$w"; return 0; fi
-            done
-            ;;
-        builtin)
-            for w in $(list_wlans); do
-                if ! is_usb_wlan "$w"; then echo "$w"; return 0; fi
-            done
-            ;;
-    esac
-    w=$(list_wlans | head -n1)
-    if [ -n "$w" ]; then
-        echo "$w"
-        return 0
-    fi
-    echo "ERROR: No wlan interface found to attach uap0" >&2
-    return 1
-}
-
-{
-    echo "=========================================="
-    echo "AP Start Log - $(date)"
-    echo "=========================================="
-    
-    PHY=$(resolve_ap_phys) || exit 1
-    sudo mkdir -p /run/fake-wifi
-    echo "$PHY" | sudo tee /run/fake-wifi/ap-phy > /dev/null
-    echo "Using physical Wi-Fi: $PHY (from /etc/fake-wifi/ap.conf)"
-    if is_usb_wlan "$PHY"; then
-        echo "Mode: dual-radio — AP on USB $PHY (external antenna); wlan0 free for home Wi-Fi / SSH"
-    else
-        echo "Mode: single-radio — AP on $PHY (STA+AP on same chip; USB dongle absent or wait timed out)"
-    fi
-
-    echo "Creating virtual AP interface uap0..."
-    # Remove uap0 if it exists
-    sudo iw dev uap0 del 2>/dev/null || true
-    # Create uap0 as virtual AP interface from the chosen phy (often wlan0; USB dongle if present)
-    sudo iw dev "$PHY" interface add uap0 type __ap
-    
-    echo "Unblocking WiFi (rfkill)..."
-    sudo rfkill unblock wlan 2>/dev/null || true
-    
-    echo "Bringing uap0 up..."
-    sudo ip link set uap0 up
-    
-    echo "Setting IP address on uap0..."
-    sudo ip addr add 192.168.4.1/24 dev uap0 2>/dev/null || sudo ip addr replace 192.168.4.1/24 dev uap0
-    
-    echo "Unmasking hostapd (if needed)..."
-    sudo systemctl unmask hostapd 2>/dev/null || true
-    
-    echo "Starting hostapd..."
-    if sudo systemctl start hostapd; then
-        sleep 2
-        if sudo systemctl is-active --quiet hostapd; then
-            echo "✓ hostapd is running"
-        else
-            echo "✗ hostapd failed to start. Recent logs:"
-            sudo journalctl -u hostapd -n 20 --no-pager
-            exit 1
-        fi
-    else
-        echo "✗ Failed to start hostapd"
-        sudo journalctl -u hostapd -n 20 --no-pager
-        exit 1
-    fi
-    
-    echo "(Re)starting dnsmasq so it binds to uap0..."
-    sudo systemctl restart dnsmasq
-
-    # Kill DNS-over-TLS (port 853) from clients with a TCP reset so Android's
-    # Private DNS = Automatic fails fast and falls back to system DNS (our dnsmasq).
-    # Without this, port 853 just times out (we have no upstream) and the captive
-    # portal probe never fires.
-    if command -v iptables >/dev/null 2>&1; then
-        echo "Adding iptables rule to reject DoT (port 853) on uap0..."
-        sudo iptables -D INPUT -i uap0 -p tcp --dport 853 -j REJECT --reject-with tcp-reset 2>/dev/null || true
-        sudo iptables -I INPUT -i uap0 -p tcp --dport 853 -j REJECT --reject-with tcp-reset || true
-        sudo iptables -D FORWARD -i uap0 -p tcp --dport 853 -j REJECT --reject-with tcp-reset 2>/dev/null || true
-        sudo iptables -I FORWARD -i uap0 -p tcp --dport 853 -j REJECT --reject-with tcp-reset 2>/dev/null || true
-    elif command -v nft >/dev/null 2>&1; then
-        echo "Adding nftables rule to reject DoT (port 853) on uap0..."
-        sudo nft add table inet fakewifi 2>/dev/null || true
-        sudo nft 'add chain inet fakewifi input { type filter hook input priority 0 ; }' 2>/dev/null || true
-        sudo nft flush chain inet fakewifi input 2>/dev/null || true
-        sudo nft add rule inet fakewifi input iifname "uap0" tcp dport 853 reject with tcp reset || true
-    else
-        echo "WARNING: neither iptables nor nft found — Private DNS (port 853) NOT blocked. Android captive portal may be unreliable."
-    fi
-
-    echo "Starting post board API..."
-    sudo systemctl start burnernet-api.service 2>/dev/null || true
-    
-    echo "Ensuring SSH is accessible..."
-    sudo systemctl start ssh 2>/dev/null || sudo systemctl start sshd 2>/dev/null || true
-    
-    echo "Checking firewall (ufw)..."
-    if command -v ufw >/dev/null 2>&1; then
-        sudo ufw allow 22/tcp 2>/dev/null || true
-        echo "  SSH port 22 allowed"
-    fi
-    
-    echo ""
-    echo "=========================================="
-    echo "AP started! SSID: BURNER-NET.COM"
-    echo ""
-    if is_usb_wlan "$PHY"; then
-        echo "uap0 on $PHY broadcasts BURNER-NET.COM (USB antenna)."
-        echo "wlan0: home Wi-Fi / SSH via NetworkManager."
-        echo "Or join BURNER-NET.COM and SSH to j@192.168.4.1"
-    else
-        echo "uap0 on $PHY broadcasts BURNER-NET.COM (onboard radio, STA+AP)."
-        echo "SSH via home Wi-Fi on $PHY OR join BURNER-NET.COM and SSH to j@192.168.4.1"
-    fi
-    echo ""
-    echo "To check status: sudo systemctl status hostapd"
-    echo "To view logs: sudo journalctl -u hostapd -f"
-    echo "To view this log: cat $LOG_FILE"
-    echo "=========================================="
-    echo "Log saved to: $LOG_FILE"
-} | tee -a "$LOG_FILE"
-SCRIPT
-
-sudo tee /usr/local/bin/stop-ap.sh > /dev/null <<'SCRIPT'
-#!/bin/bash
-sudo systemctl stop hostapd
-sudo systemctl stop dnsmasq
-sudo systemctl stop burnernet-api.service 2>/dev/null || true
-if command -v iptables >/dev/null 2>&1; then
-    sudo iptables -D INPUT -i uap0 -p tcp --dport 853 -j REJECT --reject-with tcp-reset 2>/dev/null || true
-    sudo iptables -D FORWARD -i uap0 -p tcp --dport 853 -j REJECT --reject-with tcp-reset 2>/dev/null || true
-fi
-if command -v nft >/dev/null 2>&1; then
-    sudo nft delete table inet fakewifi 2>/dev/null || true
-fi
-sudo ip addr del 192.168.4.1/24 dev uap0 2>/dev/null || true
-sudo ip link set uap0 down 2>/dev/null || true
-sudo iw dev uap0 del 2>/dev/null || true
-sudo rm -f /run/fake-wifi/ap-phy /run/fake-wifi/ap-boot-delay 2>/dev/null || true
-echo "AP stopped. Virtual interface uap0 removed."
-echo "Physical wlan is unchanged (still up if NetworkManager/wpa kept it)."
-SCRIPT
-
+sudo cp "$SCRIPT_DIR/pi/start-ap.sh" /usr/local/bin/start-ap.sh
+sudo cp "$SCRIPT_DIR/pi/stop-ap.sh" /usr/local/bin/stop-ap.sh
 sudo chmod +x /usr/local/bin/start-ap.sh /usr/local/bin/stop-ap.sh
 
 # Create a log viewer script
@@ -635,8 +421,9 @@ echo "  sudo stop-ap.sh"
 echo "  view-ap-log.sh"
 echo ""
 echo "Two modes (when AP runs):"
-echo "  USB dongle present: wlan0 = home Wi-Fi / SSH, wlan1 = BURNER-NET.COM AP (uap0)"
-echo "  No USB dongle:      wlan0 = STA+AP on one radio (fallback)"
+echo "  USB dongle present: wlan0 = home Wi-Fi / SSH, USB = BURNER-NET.COM AP (uap0)"
+echo "  No USB dongle:      onboard = AP-only (home Wi-Fi drops; SSH j@192.168.4.1;"
+echo "                   stop-ap.sh restores the saved home network)"
 echo ""
 echo "Config: sudo nano /etc/fake-wifi/ap.conf"
 echo "  AP_PHYS=auto, AP_PHYS_PREFER=usb, AP_PHYS_WAIT_SECS=15"
@@ -645,5 +432,5 @@ echo "Logs: /var/log/ap-start.log"
 echo ""
 echo "Status LEDs: GPIO18, 4 pixels (wire 1 now, chain more later)"
 echo "  Red flash = boot delay (AP starting soon); solid red = AP down"
-echo "  Rainbow = BURNER-NET.COM healthy; LED0 red blip = backup radio (onboard)"
+echo "  Green bounce+rainbow = onboard AP; white bounce+rainbow = USB AP; red = AP down"
 echo "=========================================="
