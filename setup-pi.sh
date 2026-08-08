@@ -375,6 +375,28 @@ if [ -f "$SCRIPT_DIR/pi/fake-wifi-leds.service" ]; then
     fi
 fi
 
+# NeoPixels on GPIO18 share hardware PWM with the Pi's onboard analog audio
+# (loaded even without a headphone jack, e.g. Pi Zero 2 W). Left on, it causes
+# random single-pixel color glitches. Disable it — doesn't affect HDMI audio.
+FAKE_WIFI_AUDIO_DISABLED=false
+if [ "$FAKE_WIFI_HAS_WS281X" = true ]; then
+    for CONFIG_TXT in /boot/firmware/config.txt /boot/config.txt; do
+        [ -f "$CONFIG_TXT" ] || continue
+        if grep -q '^dtparam=audio=on' "$CONFIG_TXT"; then
+            sudo sed -i 's/^dtparam=audio=on/dtparam=audio=off/' "$CONFIG_TXT"
+            FAKE_WIFI_AUDIO_DISABLED=true
+        elif ! grep -q '^dtparam=audio=' "$CONFIG_TXT"; then
+            echo 'dtparam=audio=off' | sudo tee -a "$CONFIG_TXT" > /dev/null
+            FAKE_WIFI_AUDIO_DISABLED=true
+        fi
+        break
+    done
+    if [ "$FAKE_WIFI_AUDIO_DISABLED" = true ]; then
+        echo "Onboard audio (dtparam=audio) disabled to avoid GPIO18 PWM conflict with LEDs."
+        echo "  Takes effect after reboot — LEDs may glitch on this boot until then."
+    fi
+fi
+
 # Install AP service unit (not enabled here — verify wlan0 uplink first)
 sudo systemctl daemon-reload
 
@@ -433,4 +455,12 @@ echo ""
 echo "Status LEDs: GPIO18, 4 pixels (wire 1 now, chain more later)"
 echo "  Red flash = boot delay (AP starting soon); solid red = AP down"
 echo "  Green bounce+rainbow = onboard AP; white bounce+rainbow = USB AP; red = AP down"
+if [ "$FAKE_WIFI_AUDIO_DISABLED" = true ]; then
+    echo ""
+    echo "IMPORTANT: onboard audio was just disabled (GPIO18 PWM conflict) —"
+    echo "  reboot before trusting LED colors: sudo reboot"
+fi
+echo "  Strip wire order defaults to RGB (this build's strip). If colors look"
+echo "  swapped, run pi/led-color-test.py and set FAKE_WIFI_LED_STRIP_TYPE=GRB"
+echo "  (or RGB/BRG/etc.) as an Environment= line in fake-wifi-leds.service."
 echo "=========================================="

@@ -75,14 +75,14 @@ sudo systemctl enable --now fake-wifi-ap.service
 
 ## Boot-time safety: `AP_BOOT_DELAY_SECS`
 
-When `fake-wifi-ap.service` is enabled, `start-ap.sh` **sleeps for `AP_BOOT_DELAY_SECS` (default 60s) at boot only** before touching any interface. This is your SSH recovery window.
+When `fake-wifi-ap.service` is enabled, `start-ap.sh` **sleeps for `AP_BOOT_DELAY_SECS` (default 30s) at boot only** before touching any interface. This is your SSH recovery window.
 
 **Why it exists:** without a USB dongle, `start-ap.sh` runs **onboard AP-only** (releases NetworkManager on `wlan0`, home Wi‑Fi drops until `stop-ap.sh`). The delay gives you time to SSH in and abort before that happens. With USB present, home Wi‑Fi stays up.
 
 **Configuration** in `/etc/fake-wifi/ap.conf`:
 
 ```
-AP_BOOT_DELAY_SECS=60   # seconds; 0 disables; only applies at boot
+AP_BOOT_DELAY_SECS=30   # seconds; 0 disables; only applies at boot
 ```
 
 **Important properties:**
@@ -91,7 +91,7 @@ AP_BOOT_DELAY_SECS=60   # seconds; 0 disables; only applies at boot
 - Manual `sudo start-ap.sh` runs are **instant** — no delay.
 - Logged to `/var/log/ap-start.log` as the first line at boot.
 
-### Abort during the 60s window
+### Abort during the 30s window
 
 If you SSH in during boot and see BURNER-NET.COM isn't there yet but you want to keep home Wi‑Fi (e.g. no USB today and you need `jw1.local`):
 
@@ -150,6 +150,24 @@ That leaves **orphaned** `$HTTP[...]` fragments and breaks `lighttpd -tt`. Re-ru
 | BURNER-NET.COM only | `ssh j@192.168.4.1` (may need `ssh-keygen -R 192.168.4.1` after reflash) |
 
 Recovery if `wlan0` is broken: `bash ~/fake-wifi-repo/pi/recover-network.sh`
+
+---
+
+## Status LEDs (GPIO18 NeoPixel)
+
+`pi/leds.py` → `fake-wifi-leds.service`, fully independent of the AP stack (own systemd unit, just polls AP state every 0.5s). Safe to stop/start without affecting BURNER-NET.
+
+| Mode | Pattern |
+|------|---------|
+| Boot delay | Flashing red |
+| Off-air (AP not broadcasting) | Solid red |
+| Onboard AP up | Green bounce (4s) → rainbow glow (4s), repeat |
+| USB AP up | White bounce (4s) → rainbow glow (4s), repeat |
+
+**Two known hardware gotchas — both bit us once, both are one-time fixes per Pi:**
+
+1. **Onboard audio conflicts with GPIO18 PWM.** Even on boards with no headphone jack (Pi Zero 2 W), `dtparam=audio=on` loads `snd_bcm2835`, which shares the same PWM peripheral as GPIO18. Left on, you'll see random single-pixel glitches to garbage/rainbow colors, usually most visible around Wi‑Fi radio state changes. `setup-pi.sh` disables this automatically (`dtparam=audio=off` in `/boot/firmware/config.txt`) when the LED lib installs — **takes a reboot to apply**. If you ever see stray flicker on a pixel, check this first: `grep dtparam=audio /boot/firmware/config.txt`.
+2. **Strip color order varies by NeoPixel batch.** `rpi_ws281x` defaults to `GRB` wire order; some strips are wired `RGB` (sending red shows green and vice versa). `pi/leds.py` hardcodes `WS2811_STRIP_RGB` for this build's strip (confirmed via `pi/led-color-test.py`). If you swap in a different strip and colors look swapped, run `sudo python3 pi/led-color-test.py` (stop the service first) to see the actual order, then override with `FAKE_WIFI_LED_STRIP_TYPE=GRB` (or whichever matches) as an `Environment=` line in `/etc/systemd/system/fake-wifi-leds.service`.
 
 ---
 
