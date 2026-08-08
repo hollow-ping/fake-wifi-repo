@@ -21,7 +21,7 @@ import time
 from enum import Enum, auto
 
 try:
-    from rpi_ws281x import Color, PixelStrip
+    from rpi_ws281x import Color, PixelStrip, ws
 except ImportError:
     print("rpi_ws281x not installed; run: sudo apt install python3-rpi-ws281x", file=sys.stderr)
     sys.exit(1)
@@ -30,11 +30,18 @@ LED_PIN = 18
 LED_COUNT = 4
 MAX_BRIGHTNESS = int(os.environ.get("FAKE_WIFI_LED_BRIGHTNESS", "64"))  # ~25%
 
+# This strip's wire order is RGB, not the library's WS2812 default (GRB) —
+# confirmed via pi/led-color-test.py (sending red showed green and vice versa).
+# Override with FAKE_WIFI_LED_STRIP_TYPE=GRB (etc.) if you swap to a different strip.
+_STRIP_TYPE_NAME = os.environ.get("FAKE_WIFI_LED_STRIP_TYPE", "RGB").strip().upper()
+STRIP_TYPE = getattr(ws, f"WS2811_STRIP_{_STRIP_TYPE_NAME}", ws.WS2811_STRIP_RGB)
+
 AP_PHY_FILE = "/run/fake-wifi/ap-phy"
 AP_IFACE_FILE = "/run/fake-wifi/ap-iface"
 BOOT_DELAY_FLAG = "/run/fake-wifi/ap-boot-delay"
 POLL_INTERVAL = 0.5
 FRAME_INTERVAL = 0.02
+RESYNC_INTERVAL = 3.0  # repaint an unchanged frame this often, to clear glitched pixels
 
 CYCLE_SEC = 8.0
 BOUNCE_SEC = 4.0
@@ -224,11 +231,13 @@ def render_frame(mode: LedMode, t: float) -> list[tuple[int, int, int]]:
 
 
 def main() -> None:
-    strip = PixelStrip(LED_COUNT, LED_PIN, brightness=MAX_BRIGHTNESS)
+    strip = PixelStrip(LED_COUNT, LED_PIN, brightness=MAX_BRIGHTNESS, strip_type=STRIP_TYPE)
     strip.begin()
 
     mode = LedMode.OFF_AIR
     last_poll = 0.0
+    last_pixels: list[tuple[int, int, int]] | None = None
+    last_push = 0.0
 
     try:
         while True:
@@ -238,9 +247,15 @@ def main() -> None:
                 last_poll = now
 
             pixels = render_frame(mode, now)
-            for i, (r, g, b) in enumerate(pixels):
-                strip.setPixelColor(i, Color(r, g, b))
-            strip.show()
+            # Every write to the strip is a chance for a bit error to latch a wrong
+            # colour, so skip writes that would not change anything. RESYNC_INTERVAL
+            # still repaints periodically to clear any pixel that did glitch.
+            if pixels != last_pixels or now - last_push >= RESYNC_INTERVAL:
+                for i, (r, g, b) in enumerate(pixels):
+                    strip.setPixelColor(i, Color(r, g, b))
+                strip.show()
+                last_pixels = pixels
+                last_push = now
             time.sleep(FRAME_INTERVAL)
     except KeyboardInterrupt:
         pass
