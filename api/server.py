@@ -16,9 +16,11 @@ from urllib.parse import urlparse
 
 DATA_DIR = os.environ.get('BURNERNET_DATA_DIR', '/var/lib/burnernet')
 DATA_FILE = os.path.join(DATA_DIR, 'posts.json')
+LED_PORTAL_FILE = os.path.join(DATA_DIR, 'led-portal.json')
 PORT = int(os.environ.get('BURNERNET_PORT', '3000'))
 
 _lock = threading.Lock()
+_led_lock = threading.Lock()
 
 
 def _ensure_dir():
@@ -65,6 +67,34 @@ def _new_id():
     return f"{int(time.time() * 1000)}-{os.urandom(3).hex()}"
 
 
+def _read_led_portal():
+    try:
+        with open(LED_PORTAL_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            if isinstance(data, dict):
+                return data
+    except Exception:
+        pass
+    return {'phase': 'idle', 'ts': 0}
+
+
+def _write_led_portal(phase: str):
+    _ensure_dir()
+    payload = {'phase': phase, 'ts': time.time()}
+    fd, tmp = tempfile.mkstemp(prefix='led-portal-', suffix='.json', dir=DATA_DIR)
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            json.dump(payload, f)
+        os.replace(tmp, LED_PORTAL_FILE)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except Exception:
+            pass
+        raise
+    return payload
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = 'BurnerNetAPI/1.0'
 
@@ -92,20 +122,32 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     # GET /api/posts
+    # GET /api/led-portal
     def do_GET(self):
         path = urlparse(self.path).path
         if path == '/api/posts':
             with _lock:
                 posts = _load()
             return self._json(200, posts)
+        if path == '/api/led-portal':
+            with _led_lock:
+                return self._json(200, _read_led_portal())
         return self._json(404, {'error': 'not found'})
 
     # POST /api/posts
     # POST /api/posts/<id>/replies
     # POST /api/posts/<id>/archive
+    # POST /api/led-portal  {"phase": "connecting"|"idle"}
     def do_POST(self):
         path = urlparse(self.path).path
         body = self._read_json() or {}
+
+        if path == '/api/led-portal':
+            phase = _clean_str(body.get('phase', ''), limit=32).lower()
+            if phase not in ('connecting', 'idle'):
+                return self._json(400, {'error': 'phase must be connecting or idle'})
+            with _led_lock:
+                return self._json(200, _write_led_portal(phase))
 
         if path == '/api/posts':
             author = _clean_str(body.get('author', '')) or 'Anonymous'

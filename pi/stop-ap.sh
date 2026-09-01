@@ -3,6 +3,7 @@
 set -e
 
 RUN_DIR=/run/fake-wifi
+AP_ADDR=192.168.4.1
 
 is_usb_wlan() {
     local iface=$1 subs
@@ -26,6 +27,35 @@ elif [ -z "$PHY" ]; then
     PHY=wlan0
 fi
 AP_IFACE=${AP_IFACE:-uap0}
+
+# Stopping hostapd drops any SSH session riding on the AP itself, which would kill
+# this script long before it restores home Wi-Fi — leaving the Pi with no network
+# at all. Hand off to systemd so the teardown always runs to completion.
+detach_if_needed() {
+    if [ -n "${FAKE_WIFI_DETACHED:-}" ] || [ -n "${INVOCATION_ID:-}" ]; then
+        return 0
+    fi
+    if [ -z "${SSH_CONNECTION:-}" ]; then
+        return 0
+    fi
+    local server_ip
+    server_ip=$(echo "$SSH_CONNECTION" | awk '{print $3}')
+    if [ "$server_ip" != "$AP_ADDR" ]; then
+        return 0
+    fi
+    echo "This SSH session runs over the AP — continuing teardown via systemd..."
+    echo "  Home Wi-Fi comes back in a few seconds; reconnect with: ssh j@jw1.local"
+    sudo systemd-run \
+        --unit=fake-wifi-ap-stop \
+        --collect \
+        --property=Type=oneshot \
+        --setenv=FAKE_WIFI_DETACHED=1 \
+        /usr/local/bin/stop-ap.sh
+    exit 0
+}
+
+detach_if_needed
+trap '' HUP
 
 # Stop AP daemons (may have been started via systemd or directly)
 sudo systemctl stop hostapd 2>/dev/null || true
@@ -52,8 +82,8 @@ sudo ip addr del 192.168.4.1/24 dev wlan0 2>/dev/null || true
 sudo ip link set uap0 down 2>/dev/null || true
 sudo iw dev uap0 del 2>/dev/null || true
 
-sudo rm -f "$RUN_DIR/ap-phy" "$RUN_DIR/ap-boot-delay" "$RUN_DIR/ap-iface" \
-    "$RUN_DIR/hostapd.conf" "$RUN_DIR/dnsmasq.conf" 2>/dev/null || true
+sudo rm -f "$RUN_DIR/ap-phy" "$RUN_DIR/ap-boot-delay" "$RUN_DIR/ap-starting" \
+    "$RUN_DIR/ap-iface" "$RUN_DIR/hostapd.conf" "$RUN_DIR/dnsmasq.conf" 2>/dev/null || true
 
 echo "AP stopped."
 

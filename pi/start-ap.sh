@@ -9,6 +9,7 @@ LOG_FILE="/var/log/ap-start.log"
 RUN_DIR=/run/fake-wifi
 HOSTAPD_RUN="$RUN_DIR/hostapd.conf"
 DNSMASQ_RUN="$RUN_DIR/dnsmasq.conf"
+STARTING_FLAG="$RUN_DIR/ap-starting"
 mkdir -p /var/log
 
 # shellcheck source=/dev/null
@@ -97,6 +98,32 @@ resolve_ap_phys() {
     return 1
 }
 
+LEDS_UNIT=fake-wifi-leds.service
+LEDS_WERE_ACTIVE=0
+
+# Bringing the radio up spikes 5V draw, and the strip runs off the Pi's own rail.
+# Together they browned the board out mid-switch, so go dark for those few seconds.
+quiesce_leds() {
+    if systemctl is-active --quiet "$LEDS_UNIT"; then
+        LEDS_WERE_ACTIVE=1
+        echo "Pausing status LEDs across the radio switch (5V headroom)..."
+        sudo systemctl stop "$LEDS_UNIT" 2>/dev/null || true
+        sleep 1
+    fi
+}
+
+resume_leds() {
+    if [ "$LEDS_WERE_ACTIVE" = "1" ]; then
+        LEDS_WERE_ACTIVE=0
+        sudo systemctl start "$LEDS_UNIT" 2>/dev/null || true
+    fi
+}
+
+on_exit() {
+    resume_leds
+    sudo rm -f "$STARTING_FLAG" 2>/dev/null || true
+}
+
 release_home_wifi() {
     local phy=$1 conn
     echo "Single-radio: releasing NetworkManager on $phy (home Wi-Fi will drop)..."
@@ -136,6 +163,8 @@ detach_single_radio_if_needed() {
         --property=RemainAfterExit=yes \
         --setenv=FAKE_WIFI_DETACHED=1 \
         /usr/local/bin/start-ap.sh
+    # The re-exec owns the run-state now; don't tear down what it just set up.
+    trap - EXIT
     exit 0
 }
 
@@ -228,6 +257,12 @@ block_dot() {
     echo "AP Start Log - $(date)"
     echo "=========================================="
 
+    # Tell the LEDs we're coming up before the dongle wait, so they show "starting"
+    # rather than off-air red for the next ~15s. Cleared however this script exits.
+    sudo mkdir -p "$RUN_DIR"
+    sudo touch "$STARTING_FLAG"
+    trap on_exit EXIT
+
     PHY=$(resolve_ap_phys) || exit 1
     sudo mkdir -p "$RUN_DIR"
     echo "$PHY" | sudo tee "$RUN_DIR/ap-phy" > /dev/null
@@ -236,6 +271,7 @@ block_dot() {
 
     if is_usb_wlan "$PHY"; then
         echo "Mode: dual-radio — AP on USB $PHY via uap0"
+        quiesce_leds
         sudo rm -f "$RUN_DIR/home-conn"
         AP_IFACE=uap0
 
@@ -248,6 +284,7 @@ block_dot() {
     else
         echo "Mode: single-radio — hostapd directly on $PHY (no uap0; brcmfmac-safe)"
         detach_single_radio_if_needed "$PHY"
+        quiesce_leds
         release_home_wifi "$PHY"
         AP_IFACE=$PHY
 
@@ -281,6 +318,8 @@ block_dot() {
     if command -v ufw >/dev/null 2>&1; then
         sudo ufw allow 22/tcp 2>/dev/null || true
     fi
+
+    resume_leds
 
     echo ""
     echo "=========================================="
