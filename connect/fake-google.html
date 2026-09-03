@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google</title>
+    <style>
+        /* Fake Google homepage - parody of google.com mobile.
+           Whole page is a click target that advances to sparkle-pony.html. */
+        * { box-sizing: border-box; }
+        html, body { height: 100%; }
+        body {
+            margin: 0;
+            background: #ffffff;
+            color: #202124;
+            font-family: Roboto, Arial, 'Helvetica Neue', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .page {
+            width: 100%;
+            max-width: 448px;
+            min-height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Zone 1 - top bar */
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px 0;
+        }
+        .tabs { display: flex; gap: 22px; }
+        .tab {
+            font-size: 14px;
+            color: #5f6368;
+            padding-bottom: 12px;
+            letter-spacing: .3px;
+        }
+        .tab--active {
+            color: #1a73e8;
+            font-weight: 500;
+            border-bottom: 3px solid #1a73e8;
+        }
+        .top-actions { display: flex; align-items: center; gap: 18px; }
+        .apps-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 4px);
+            grid-auto-rows: 4px;
+            gap: 3px;
+        }
+        .apps-grid i { width: 4px; height: 4px; border-radius: 50%; background: #5f6368; }
+        .avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #d9b382;
+            color: #4a3623;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        /* Zone 2 - middle (logo + search + wordmark), centered between top bar and ad */
+        .middle {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 16px;
+        }
+        .logo { display: block; width: 240px; max-width: 76%; height: auto; }
+        .searchbar {
+            margin-top: 26px;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            height: 48px;
+            padding: 0 16px;
+            border: 1px solid #dfe1e5;
+            border-radius: 24px;
+            box-shadow: 0 1px 6px rgba(32, 33, 36, .12);
+        }
+        .search-space { flex: 1; }
+        .search-right { display: flex; align-items: center; gap: 18px; }
+        .ico { width: 22px; height: 22px; display: block; flex-shrink: 0; }
+        .ico-search { fill: #9aa0a6; }
+        .ico-ai, .ico-mic, .ico-cam { fill: #4285F4; }
+        .wordmark {
+            margin-top: 26px;
+            text-align: center;
+            font-family: Arial, sans-serif;
+            font-weight: 500;
+            font-size: 30px;
+            letter-spacing: -1px;
+            color: #ffffff; /* present like the mockup, invisible on white */
+        }
+
+        /* Zone 3 - the "ad" / news card, bottom ~50% */
+        .card {
+            margin-top: auto;
+            width: 100%;
+            height: 50vh;
+            display: flex;
+            flex-direction: column;
+            border-top: 1px solid #dadce0;
+        }
+        .card-photo {
+            width: 100%;
+            flex: 1;
+            min-height: 0;
+            object-fit: cover;
+            display: block;
+        }
+        .card-headline {
+            margin: 12px 16px 4px;
+            font-size: 21px;
+            line-height: 1.3;
+            font-weight: 700;
+            color: #202124;
+        }
+        .card-source {
+            margin: 4px 16px 16px;
+            font-size: 13px;
+            color: #5f6368;
+        }
+
+        /* Desktop-only affordances: link cursor everywhere, text cursor on the "search bar" */
+        @media (hover: hover) and (pointer: fine) {
+            body, body * { cursor: pointer; }
+            .searchbar, .searchbar * { cursor: text; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <header class="topbar">
+            <nav class="tabs">
+                <span class="tab tab--active">ALL</span>
+                <span class="tab">IMAGES</span>
+            </nav>
+            <div class="top-actions">
+                <span class="apps-grid" aria-hidden="true">
+                    <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                </span>
+                <span class="avatar">B</span>
+            </div>
+        </header>
+
+        <main class="middle">
+            <img class="logo" src="../images/fake-google-logo.jpg" alt="Google">
+
+            <div class="searchbar">
+                <svg class="ico ico-search" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5Zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14Z"/></svg>
+                <span class="search-space"></span>
+                <span class="search-right">
+                    <svg class="ico ico-ai" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l1.9 5.6L19.5 9.5 13.9 11.4 12 17l-1.9-5.6L4.5 9.5l5.6-1.9L12 2Zm6.5 11l.8 2.4 2.4.8-2.4.8-.8 2.4-.8-2.4-2.4-.8 2.4-.8.8-2.4Z"/></svg>
+                    <svg class="ico ico-mic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z"/></svg>
+                    <svg class="ico ico-cam" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 5h-3.17l-1.24-1.35A2 2 0 0 0 14.12 3H9.88a2 2 0 0 0-1.47.65L7.17 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm-8 13a5 5 0 1 1 0-10 5 5 0 0 1 0 10Zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/></svg>
+                </span>
+            </div>
+
+            <div class="wordmark" aria-label="Google"><span>G</span><span>o</span><span>o</span><span>g</span><span>l</span><span>e</span></div>
+        </main>
+
+        <article class="card">
+            <img class="card-photo" src="../images/bm-man-2026.jpeg" alt="">
+            <h2 class="card-headline">The man is on schedule to burn tonight! Winds expected to carry debris up to 100 miles from the event.</h2>
+            <p class="card-source">Burner News Today &bull; 40 years</p>
+        </article>
+    </div>
+
+    <script>
+        // Whole page advances the flow; no visible hint.
+        document.addEventListener('click', function () {
+            window.location.href = 'sparkle-pony.html';
+        });
+    </script>
+    <script src="../js/led-portal.js"></script>
+    <script>BurnerLedPortal.connecting();</script>
+</body>
+</html>
