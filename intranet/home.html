@@ -197,8 +197,9 @@
             h = h % 12; if (h === 0) h = 12;
             return `${mm}/${dd}/${yy} ${h}:${m} ${ampm}`;
         }
-        function metaLine(ts) {
-            return `${formatDate(ts)} -- PDF 2026`;
+        function metaLine(post) {
+            const burn = (post && post.burn) ? post.burn : 'Microburn 2026';
+            return `${formatDate(post.timestamp)} -- ${burn}`;
         }
 
         async function fetchPosts() {
@@ -250,7 +251,7 @@
 
                 const metaDiv = document.createElement('div');
                 metaDiv.className = 'post-meta';
-                metaDiv.textContent = metaLine(post.timestamp);
+                metaDiv.textContent = metaLine(post);
 
                 postDiv.appendChild(authorLabel);
                 postDiv.appendChild(contentDiv);
@@ -291,7 +292,11 @@
                 const r = await fetch('/api/posts', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ author: getBurnerName(), content })
+                    body: JSON.stringify({
+                        author: getBurnerName(),
+                        content,
+                        timestamp: Date.now()
+                    })
                 });
                 if (!r.ok) throw new Error('bad status');
                 textarea.value = '';

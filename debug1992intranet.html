@@ -152,8 +152,9 @@
         function fullTimestamp(ts) {
             return new Date(ts).toLocaleString();
         }
-        function metaLine(ts) {
-            return `${formatDate(ts)} -- PDF 2026`;
+        function metaLine(post) {
+            const burn = (post && post.burn) ? post.burn : 'Microburn 2026';
+            return `${formatDate(post.timestamp)} -- ${burn}`;
         }
 
         async function setArchived(id, archived) {
@@ -184,7 +185,7 @@
 
             const meta = document.createElement('div');
             meta.className = 'post-meta';
-            meta.textContent = metaLine(post.timestamp);
+            meta.textContent = metaLine(post);
 
             const details = document.createElement('div');
             details.className = 'post-details';

@@ -77,8 +77,8 @@ else
     echo "Warning: $SCRIPT_DIR/pi/ap.conf missing; using minimal /etc/fake-wifi/ap.conf"
     sudo tee /etc/fake-wifi/ap.conf > /dev/null <<'DEFAULT_AP_CONF'
 AP_PHYS=auto
-AP_PHYS_PREFER=usb
-AP_PHYS_WAIT_SECS=15
+AP_PHYS_PREFER=builtin
+AP_PHYS_WAIT_SECS=0
 DEFAULT_AP_CONF
 fi
 
@@ -325,6 +325,17 @@ sudo systemctl daemon-reload
 sudo systemctl enable burnernet-api.service
 sudo systemctl start burnernet-api.service
 
+# Allow the API (www-data) to set the clock from /debug1992 — no RTC on the Zero.
+if [ -f "$SCRIPT_DIR/pi/set-time.sh" ]; then
+    sudo cp "$SCRIPT_DIR/pi/set-time.sh" /usr/local/bin/burnernet-set-time
+    sudo chmod 755 /usr/local/bin/burnernet-set-time
+fi
+sudo tee /etc/sudoers.d/burnernet-set-time > /dev/null <<'SUDOERS'
+www-data ALL=(root) NOPASSWD: /usr/local/bin/burnernet-set-time
+SUDOERS
+sudo chmod 440 /etc/sudoers.d/burnernet-set-time
+sudo visudo -cf /etc/sudoers.d/burnernet-set-time >/dev/null
+
 # Enable lighttpd (web server always runs)
 sudo systemctl enable lighttpd
 sudo systemctl restart lighttpd
@@ -442,19 +453,19 @@ echo "  sudo start-ap.sh"
 echo "  sudo stop-ap.sh"
 echo "  view-ap-log.sh"
 echo ""
-echo "Two modes (when AP runs):"
-echo "  USB dongle present: wlan0 = home Wi-Fi / SSH, USB = BURNER-NET.COM AP (uap0)"
-echo "  No USB dongle:      onboard = AP-only (home Wi-Fi drops; SSH j@192.168.4.1;"
-echo "                   stop-ap.sh restores the saved home network)"
+echo "AP mode (USB dongle parked — see comments in pi/start-ap.sh):"
+echo "  Onboard AP-only (home Wi-Fi drops; SSH j@192.168.4.1;"
+echo "  stop-ap.sh restores the saved home network)"
 echo ""
 echo "Config: sudo nano /etc/fake-wifi/ap.conf"
-echo "  AP_PHYS=auto, AP_PHYS_PREFER=usb, AP_PHYS_WAIT_SECS=15"
+echo "  AP_PHYS=auto, AP_PHYS_PREFER=builtin (USB prefer commented out)"
 echo ""
 echo "Logs: /var/log/ap-start.log"
 echo ""
 echo "Status LEDs: GPIO18, 4 pixels (wire 1 now, chain more later)"
 echo "  Red flash = boot delay (AP starting soon); solid red = AP down"
-echo "  Green bounce+rainbow = onboard AP; white bounce+rainbow = USB AP; red = AP down"
+echo "  Solid red = AP down; blink red = boot delay; blink green = starting"
+echo "  Solid green = AP up; dim green = client; slow color-step = portal connecting"
 if [ "$FAKE_WIFI_AUDIO_DISABLED" = true ]; then
     echo ""
     echo "IMPORTANT: onboard audio was just disabled (GPIO18 PWM conflict) —"

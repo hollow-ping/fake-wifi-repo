@@ -157,12 +157,16 @@ Recovery if `wlan0` is broken: `bash ~/fake-wifi-repo/pi/recover-network.sh`
 
 `pi/leds.py` → `fake-wifi-leds.service`, fully independent of the AP stack (own systemd unit, just polls AP state every 0.5s). Safe to stop/start without affecting BURNER-NET.
 
-| Mode | Pattern |
+| Mode | Pattern (all 4 pixels the same) |
 |------|---------|
-| Boot delay | Flashing red |
-| Off-air (AP not broadcasting) | Solid red |
-| Onboard AP up | Green bounce (4s) → rainbow glow (4s), repeat |
-| USB AP up | White bounce (4s) → rainbow glow (4s), repeat |
+| Boot delay (AP unit actually activating) | Slow blink red |
+| Starting | Slow blink green |
+| Off-air | Solid red |
+| Onboard AP up, no clients | First **2** pixels random color flicker |
+| Client associated / intranet | First **3** pixels flicker |
+| Portal connecting (any guest) | All **4** pixels flicker |
+
+On-air uses the **max** of everyone: connecting beats associated beats empty. Intranet posts `idle` per browser so it cannot cancel someone else's connect flow.
 
 **Two known hardware gotchas — both bit us once, both are one-time fixes per Pi:**
 

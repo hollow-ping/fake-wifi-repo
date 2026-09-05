@@ -1,8 +1,11 @@
 #!/bin/bash
 # Bring up BURNER-NET.COM.
-# USB dongle present → dual-radio: uap0 on USB; onboard keeps home Wi-Fi.
-# No USB             → single-radio: hostapd on wlan0 directly (brcmfmac does not
-#                      reliably AP on a virtual uap0). Home Wi-Fi drops until stop.
+# Always onboard AP-only for now (hostapd on wlan0; brcmfmac does not reliably
+# AP on a virtual uap0). Home Wi-Fi drops until stop-ap.sh.
+#
+# USB dual-radio is parked (Sep 2026 — no dongle). Search this file for
+# "USB dual-radio parked" to restore: uncomment wait_for_usb in resolve_ap_phys
+# and the uap0 branch. Until then we never wait for / bind to a USB wlan.
 set -eo pipefail
 
 LOG_FILE="/var/log/ap-start.log"
@@ -31,35 +34,36 @@ list_wlans() {
     done
 }
 
-is_usb_wlan() {
-    local iface=$1 subs
-    [ -e "/sys/class/net/$iface" ] || return 1
-    subs=$(readlink -f "/sys/class/net/$iface/device/subsystem" 2>/dev/null) || return 1
-    [[ "$subs" == *usb* ]] && return 0
-    return 1
-}
-
-find_usb_wlan() {
-    local w
-    for w in $(list_wlans); do
-        is_usb_wlan "$w" && { echo "$w"; return 0; }
-    done
-    return 1
-}
-
-wait_for_usb_wlan() {
-    local w secs=${AP_PHYS_WAIT_SECS:-15} elapsed=0
-    if [ "$secs" -le 0 ] 2>/dev/null; then
-        find_usb_wlan
-        return $?
-    fi
-    while [ "$elapsed" -lt "$secs" ]; do
-        w=$(find_usb_wlan) && { echo "$w"; return 0; }
-        sleep 1
-        elapsed=$((elapsed + 1))
-    done
-    return 1
-}
+# USB dual-radio parked — helpers kept for when a dongle comes back.
+# is_usb_wlan() {
+#     local iface=$1 subs
+#     [ -e "/sys/class/net/$iface" ] || return 1
+#     subs=$(readlink -f "/sys/class/net/$iface/device/subsystem" 2>/dev/null) || return 1
+#     [[ "$subs" == *usb* ]] && return 0
+#     return 1
+# }
+#
+# find_usb_wlan() {
+#     local w
+#     for w in $(list_wlans); do
+#         is_usb_wlan "$w" && { echo "$w"; return 0; }
+#     done
+#     return 1
+# }
+#
+# wait_for_usb_wlan() {
+#     local w secs=${AP_PHYS_WAIT_SECS:-15} elapsed=0
+#     if [ "$secs" -le 0 ] 2>/dev/null; then
+#         find_usb_wlan
+#         return $?
+#     fi
+#     while [ "$elapsed" -lt "$secs" ]; do
+#         w=$(find_usb_wlan) && { echo "$w"; return 0; }
+#         sleep 1
+#         elapsed=$((elapsed + 1))
+#     done
+#     return 1
+# }
 
 resolve_ap_phys() {
     local w
@@ -68,27 +72,30 @@ resolve_ap_phys() {
             echo "$AP_PHYS"
             return 0
         fi
-        if is_usb_wlan "$AP_PHYS" 2>/dev/null || [ "$AP_PHYS" = "wlan1" ]; then
-            echo "ERROR: AP_PHYS=$AP_PHYS (USB radio) not found — check dongle and aic8800 driver" >&2
-        else
-            echo "ERROR: AP_PHYS=$AP_PHYS but /sys/class/net/$AP_PHYS not found" >&2
-        fi
+        # USB dual-radio parked — was: special-case missing wlan1 / USB phy.
+        # if is_usb_wlan "$AP_PHYS" 2>/dev/null || [ "$AP_PHYS" = "wlan1" ]; then
+        #     echo "ERROR: AP_PHYS=$AP_PHYS (USB radio) not found — check dongle and aic8800 driver" >&2
+        # else
+        echo "ERROR: AP_PHYS=$AP_PHYS but /sys/class/net/$AP_PHYS not found" >&2
+        # fi
         return 1
     fi
-    case "${AP_PHYS_PREFER:-usb}" in
-        usb)
-            w=$(wait_for_usb_wlan) && { echo "$w"; return 0; }
-            echo "No USB wlan after ${AP_PHYS_WAIT_SECS:-15}s wait; using onboard radio (single-radio AP)" >&2
-            for w in $(list_wlans); do
-                if ! is_usb_wlan "$w"; then echo "$w"; return 0; fi
-            done
-            ;;
-        builtin)
-            for w in $(list_wlans); do
-                if ! is_usb_wlan "$w"; then echo "$w"; return 0; fi
-            done
-            ;;
-    esac
+    # USB dual-radio parked — do not wait for a dongle. Always onboard.
+    # Restore: uncomment the usb) case and use AP_PHYS_PREFER=usb in ap.conf.
+    # case "${AP_PHYS_PREFER:-usb}" in
+    #     usb)
+    #         w=$(wait_for_usb_wlan) && { echo "$w"; return 0; }
+    #         echo "No USB wlan after ${AP_PHYS_WAIT_SECS:-15}s wait; using onboard radio (single-radio AP)" >&2
+    #         for w in $(list_wlans); do
+    #             if ! is_usb_wlan "$w"; then echo "$w"; return 0; fi
+    #         done
+    #         ;;
+    #     builtin)
+    #         for w in $(list_wlans); do
+    #             if ! is_usb_wlan "$w"; then echo "$w"; return 0; fi
+    #         done
+    #         ;;
+    # esac
     w=$(list_wlans | head -n1)
     if [ -n "$w" ]; then
         echo "$w"
@@ -145,9 +152,10 @@ release_home_wifi() {
 
 detach_single_radio_if_needed() {
     local phy=$1
-    if is_usb_wlan "$phy"; then
-        return 0
-    fi
+    # USB dual-radio parked — USB phy used to skip this (home Wi-Fi stayed up).
+    # if is_usb_wlan "$phy"; then
+    #     return 0
+    # fi
     if [ -n "${INVOCATION_ID:-}" ] || [ -n "${FAKE_WIFI_DETACHED:-}" ]; then
         return 0
     fi
@@ -168,7 +176,7 @@ detach_single_radio_if_needed() {
     exit 0
 }
 
-# Runtime hostapd/dnsmasq configs so interface can be uap0 (USB) or wlan0 (onboard).
+# Runtime hostapd/dnsmasq configs (onboard wlan0; uap0 was USB dual-radio).
 write_runtime_configs() {
     local iface=$1
     sudo mkdir -p "$RUN_DIR"
@@ -257,8 +265,7 @@ block_dot() {
     echo "AP Start Log - $(date)"
     echo "=========================================="
 
-    # Tell the LEDs we're coming up before the dongle wait, so they show "starting"
-    # rather than off-air red for the next ~15s. Cleared however this script exits.
+    # Tell the LEDs we're coming up so they show "starting" rather than off-air red.
     sudo mkdir -p "$RUN_DIR"
     sudo touch "$STARTING_FLAG"
     trap on_exit EXIT
@@ -269,19 +276,19 @@ block_dot() {
 
     echo "Using physical Wi-Fi: $PHY (from /etc/fake-wifi/ap.conf)"
 
-    if is_usb_wlan "$PHY"; then
-        echo "Mode: dual-radio — AP on USB $PHY via uap0"
-        quiesce_leds
-        sudo rm -f "$RUN_DIR/home-conn"
-        AP_IFACE=uap0
-
-        echo "Creating virtual AP interface uap0..."
-        sudo iw dev uap0 del 2>/dev/null || true
-        sudo iw dev "$PHY" interface add uap0 type __ap
-        sudo rfkill unblock wlan 2>/dev/null || true
-        sudo ip link set uap0 up
-        sudo ip addr add 192.168.4.1/24 dev uap0 2>/dev/null || sudo ip addr replace 192.168.4.1/24 dev uap0
-    else
+    # USB dual-radio parked — uap0 on the dongle. Restore this whole branch.
+    # if is_usb_wlan "$PHY"; then
+    #     echo "Mode: dual-radio — AP on USB $PHY via uap0"
+    #     quiesce_leds
+    #     sudo rm -f "$RUN_DIR/home-conn"
+    #     AP_IFACE=uap0
+    #     echo "Creating virtual AP interface uap0..."
+    #     sudo iw dev uap0 del 2>/dev/null || true
+    #     sudo iw dev "$PHY" interface add uap0 type __ap
+    #     sudo rfkill unblock wlan 2>/dev/null || true
+    #     sudo ip link set uap0 up
+    #     sudo ip addr add 192.168.4.1/24 dev uap0 2>/dev/null || sudo ip addr replace 192.168.4.1/24 dev uap0
+    # else
         echo "Mode: single-radio — hostapd directly on $PHY (no uap0; brcmfmac-safe)"
         detach_single_radio_if_needed "$PHY"
         quiesce_leds
@@ -295,7 +302,7 @@ block_dot() {
         # Drop any prior STA addresses before assigning portal IP
         sudo ip addr flush dev "$PHY" 2>/dev/null || true
         sudo ip addr replace 192.168.4.1/24 dev "$PHY"
-    fi
+    # fi
 
     write_runtime_configs "$AP_IFACE"
 
@@ -325,13 +332,14 @@ block_dot() {
     echo "=========================================="
     echo "AP started! SSID: BURNER-NET.COM on $AP_IFACE"
     echo ""
-    if is_usb_wlan "$PHY"; then
-        echo "Dual-radio: onboard keeps home Wi-Fi / SSH."
-        echo "Or join BURNER-NET.COM → ssh j@192.168.4.1"
-    else
+    # USB dual-radio parked — dual-radio success text lived here.
+    # if is_usb_wlan "$PHY"; then
+    #     echo "Dual-radio: onboard keeps home Wi-Fi / SSH."
+    #     echo "Or join BURNER-NET.COM → ssh j@192.168.4.1"
+    # else
         echo "Single-radio: home Wi-Fi is down — SSH: j@192.168.4.1"
         echo "stop-ap.sh restores the saved home network."
-    fi
+    # fi
     echo "=========================================="
     echo "Log saved to: $LOG_FILE"
 } | tee -a "$LOG_FILE"

@@ -1,26 +1,30 @@
 #!/usr/bin/env python3
 """
-Status LEDs for Fake WiFi (GPIO18, up to 4 NeoPixels).
+Status LEDs for Fake WiFi (GPIO18, 4 NeoPixels via rpi_ws281x PWM).
 
-1. BOOT_DELAY — AP boot wait: pixel 1 flashing red, half level.
-2. STARTING   — start-ap.sh mid-run: pixel 1 flashing green, half level.
-3. OFF_AIR    — AP not running or failed: all LEDs solid red.
-4. ONBOARD    — Up on onboard radio, no clients: green bounce (1s/pixel).
-5. USB        — Up on USB radio, no clients: blue bounce (1s/pixel).
-6. CONNECTED  — Client associated (not in portal "connecting"): LEDs 1–3 solid
-                dim green, LED 4 blinks blue 1s on / 1s off.
-7. CONNECTING — Guest is on a connect-flow page (go/queue/geolocate/…): rainbow.
+The Pi Zero is bad at WS2812 timing: GPIO18 is PWM0, which fights Wi‑Fi DMA
+and leftover analog-audio PWM. Bit slips latch as random colors. We cannot
+fully fix that in software. This file just makes glitches rarer and less
+obvious:
 
-"Connecting" is signaled by the portal via POST /api/led-portal (file under
-/var/lib/burnernet). Wi‑Fi association alone cannot see which HTML page is open.
-Every frame goes through limit_current() — the strip shares the Pi's 5V rail.
+- All 4 pixels always the same color (no bounce / rainbow chase).
+- show() at most a few times per second, twice per update to overwrite slips.
+- Boot-delay flag is ignored unless fake-wifi-ap is actually activating
+  (a leftover /run/fake-wifi/ap-boot-delay used to flash forever).
+
+On-air pixels 1..N flicker random colors (rest off). N is the max of
+anyone on the AP: 2 = broadcasting empty, 3 = associated / intranet,
+4 = at least one guest on a connect-flow page.
+
+Off-air still uses the slow status blinks. Connecting is per-guest in
+/var/lib/burnernet/led-portal.json.
 """
 
 from __future__ import annotations
 
 import json
-import math
 import os
+import random
 import subprocess
 import sys
 import time
@@ -34,19 +38,20 @@ except ImportError:
 
 LED_PIN = 18
 LED_COUNT = 4
-# Per-state levels are chosen in software (HALF vs dim), so leave the hardware
-# scale wide open and let limit_current() be the thing that bounds draw.
-MAX_BRIGHTNESS = int(os.environ.get("FAKE_WIFI_LED_BRIGHTNESS", "255"))
-HALF = 128
-# Connected solids — intentionally dimmer than half to keep 5V headroom.
-CONNECTED_GREEN_LEVEL = int(os.environ.get("FAKE_WIFI_LED_CONNECTED_GREEN", "64"))
+# GPIO18 = PWM channel 0. DMA 10 is the rpi_ws281x default; 5 sometimes
+# collides with SD card on older Pis, 10 collides with SPI (we don't use SPI).
+LED_FREQ_HZ = 800000
+LED_DMA = int(os.environ.get("FAKE_WIFI_LED_DMA", "10"))
+LED_CHANNEL = 0
 
-# The strip is fed from the Pi's own 5V pin, so its draw competes with the SoC and
-# the radio. Cap estimated draw per frame. ~20mA is one WS2812B channel at full.
+# Keep protocol brightness modest so the 5V burst during show() sags less.
+MAX_BRIGHTNESS = int(os.environ.get("FAKE_WIFI_LED_BRIGHTNESS", "64"))
+HALF = 128
+CONNECTED_GREEN_LEVEL = int(os.environ.get("FAKE_WIFI_LED_CONNECTED_GREEN", "48"))
+
 MA_PER_CHANNEL_FULL = 20.0
 CURRENT_BUDGET_MA = float(os.environ.get("FAKE_WIFI_LED_BUDGET_MA", "50"))
 
-# This strip's wire order is RGB, not the library's WS2812 default (GRB).
 _STRIP_TYPE_NAME = os.environ.get("FAKE_WIFI_LED_STRIP_TYPE", "RGB").strip().upper()
 STRIP_TYPE = getattr(ws, f"WS2811_STRIP_{_STRIP_TYPE_NAME}", ws.WS2811_STRIP_RGB)
 
@@ -57,18 +62,16 @@ STARTING_FLAG = "/run/fake-wifi/ap-starting"
 LED_PORTAL_FILE = os.environ.get(
     "FAKE_WIFI_LED_PORTAL_FILE", "/var/lib/burnernet/led-portal.json"
 )
-# Portal heartbeats every ~2.5s; treat as connecting if fresher than this.
 PORTAL_CONNECTING_TTL_SEC = float(os.environ.get("FAKE_WIFI_LED_PORTAL_TTL", "8"))
 
 AP_UNITS = ("fake-wifi-ap.service", "fake-wifi-ap-manual.service")
 POLL_INTERVAL = 0.5
-FRAME_INTERVAL = 0.02
-RESYNC_INTERVAL = 3.0
+FRAME_INTERVAL = 0.12
+RESYNC_INTERVAL = 8.0
+SHOW_RESET_SEC = 0.0004
 
-BOUNCE_STEP_SEC = 1.0
-FLASH_PERIOD_SEC = 0.8
-BLUE_BLINK_PERIOD_SEC = 2.0  # 1s on, 1s off
-RAINBOW_CYCLE_SEC = 6.0
+FLASH_PERIOD_SEC = 1.2
+FLICKER_OFF_CHANCE = 0.4
 
 RED_HALF = (HALF, 0, 0)
 GREEN_HALF = (0, HALF, 0)
@@ -83,31 +86,9 @@ class LedMode(Enum):
     STARTING = auto()
     OFF_AIR = auto()
     ONBOARD = auto()
-    USB = auto()
+    USB = auto()  # parked — see is_usb_phy / evaluate_mode
     CONNECTED = auto()
     CONNECTING = auto()
-
-
-def hsv_to_rgb(h: float, s: float, v: float) -> tuple[int, int, int]:
-    i = int(h * 6)
-    f = h * 6 - i
-    p = v * (1 - s)
-    q = v * (1 - f * s)
-    t = v * (1 - (1 - f) * s)
-    i %= 6
-    if i == 0:
-        r, g, b = v, t, p
-    elif i == 1:
-        r, g, b = q, v, p
-    elif i == 2:
-        r, g, b = p, v, t
-    elif i == 3:
-        r, g, b = p, q, v
-    elif i == 4:
-        r, g, b = t, p, v
-    else:
-        r, g, b = v, p, q
-    return int(r * 255), int(g * 255), int(b * 255)
 
 
 def run(cmd: list[str]) -> str:
@@ -129,7 +110,20 @@ def uap0_exists() -> bool:
 
 
 def is_boot_delay() -> bool:
-    return os.path.isfile(BOOT_DELAY_FLAG)
+    """True only while systemd is actually in the AP boot-delay window.
+
+    start-ap.sh leaves /run/fake-wifi/ap-boot-delay if killed mid-sleep;
+    that used to freeze the strip in 'delay' forever.
+    """
+    if not os.path.isfile(BOOT_DELAY_FLAG):
+        return False
+    if any(service_active_state(unit) == "activating" for unit in AP_UNITS):
+        return True
+    try:
+        os.unlink(BOOT_DELAY_FLAG)
+    except OSError:
+        pass
+    return False
 
 
 def read_ap_phy() -> str:
@@ -141,16 +135,18 @@ def read_ap_phy() -> str:
 
 
 def is_usb_phy(iface: str) -> bool:
-    if not iface or not os.path.isdir(f"/sys/class/net/{iface}"):
-        return False
-    device = f"/sys/class/net/{iface}/device"
-    if not os.path.exists(device):
-        return False
-    try:
-        subsystem = os.path.realpath(os.path.join(device, "subsystem"))
-    except OSError:
-        return False
-    return "usb" in subsystem
+    # USB dual-radio parked (Sep 2026 — no dongle). Restore evaluate_mode check.
+    # if not iface or not os.path.isdir(f"/sys/class/net/{iface}"):
+    #     return False
+    # device = f"/sys/class/net/{iface}/device"
+    # if not os.path.exists(device):
+    #     return False
+    # try:
+    #     subsystem = os.path.realpath(os.path.join(device, "subsystem"))
+    # except OSError:
+    #     return False
+    # return "usb" in subsystem
+    return False
 
 
 def read_ap_iface() -> str:
@@ -207,8 +203,18 @@ def has_client() -> bool:
     return "Station " in run(["iw", "dev", iface, "station", "dump"])
 
 
+def _guest_connecting(entry: object, now: float) -> bool:
+    if not isinstance(entry, dict) or entry.get("phase") != "connecting":
+        return False
+    try:
+        ts = float(entry.get("ts", 0))
+    except (TypeError, ValueError):
+        return False
+    return (now - ts) <= PORTAL_CONNECTING_TTL_SEC
+
+
 def is_portal_connecting() -> bool:
-    """True while a connect-flow page is heartbeating via /api/led-portal."""
+    """True if ANY guest is on a connect-flow page (max of everyone)."""
     try:
         with open(LED_PORTAL_FILE, encoding="utf-8") as f:
             data = json.load(f)
@@ -216,13 +222,11 @@ def is_portal_connecting() -> bool:
         return False
     if not isinstance(data, dict):
         return False
-    if data.get("phase") != "connecting":
-        return False
-    try:
-        ts = float(data.get("ts", 0))
-    except (TypeError, ValueError):
-        return False
-    return (time.time() - ts) <= PORTAL_CONNECTING_TTL_SEC
+    now = time.time()
+    guests = data.get("guests")
+    if isinstance(guests, dict) and guests:
+        return any(_guest_connecting(g, now) for g in guests.values())
+    return _guest_connecting(data, now)
 
 
 def evaluate_mode() -> LedMode:
@@ -234,8 +238,9 @@ def evaluate_mode() -> LedMode:
         return LedMode.CONNECTING
     if has_client():
         return LedMode.CONNECTED
-    if is_usb_phy(read_ap_phy()):
-        return LedMode.USB
+    # USB dual-radio parked — blue bounce on USB phy.
+    # if is_usb_phy(read_ap_phy()):
+    #     return LedMode.USB
     return LedMode.ONBOARD
 
 
@@ -243,56 +248,43 @@ def flash_on(t: float, period: float = FLASH_PERIOD_SEC) -> bool:
     return t % period < period / 2
 
 
-def frame_first_pixel_flash(t: float, color: tuple[int, int, int]) -> list[tuple[int, int, int]]:
-    lit = color if flash_on(t) else BLACK
-    return [lit if i == 0 else BLACK for i in range(LED_COUNT)]
+def frame_solid(color: tuple[int, int, int]) -> list[tuple[int, int, int]]:
+    return [color] * LED_COUNT
 
 
-def bounce_index(t_in_bounce: float) -> int:
-    if LED_COUNT <= 1:
-        return 0
-    path_len = 2 * (LED_COUNT - 1)
-    step = int(t_in_bounce / BOUNCE_STEP_SEC) % path_len
-    if step < LED_COUNT:
-        return step
-    return path_len - step
+def frame_blink(t: float, color: tuple[int, int, int]) -> list[tuple[int, int, int]]:
+    return frame_solid(color if flash_on(t) else BLACK)
 
 
-def frame_bounce(t: float, color: tuple[int, int, int]) -> list[tuple[int, int, int]]:
-    idx = bounce_index(t)
-    return [color if i == idx else BLACK for i in range(LED_COUNT)]
-
-
-def frame_connected(t: float) -> list[tuple[int, int, int]]:
-    """LEDs 1–3 dim solid green; LED 4 blue blink 1s on / 1s off."""
-    blue = BLUE_HALF if flash_on(t, BLUE_BLINK_PERIOD_SEC) else BLACK
-    return [GREEN_CONNECTED, GREEN_CONNECTED, GREEN_CONNECTED, blue]
-
-
-def frame_rainbow(t: float) -> list[tuple[int, int, int]]:
-    """Fun rainbow while the guest is on a connecting screen."""
-    base = (t / RAINBOW_CYCLE_SEC) % 1.0
+def frame_random_flicker(n_lit: int) -> list[tuple[int, int, int]]:
+    """First n_lit pixels independently on/off with a random color; rest off."""
+    n_lit = max(0, min(LED_COUNT, n_lit))
     out: list[tuple[int, int, int]] = []
     for i in range(LED_COUNT):
-        hue = (base + i / LED_COUNT) % 1.0
-        out.append(hsv_to_rgb(hue, 1.0, 0.55))
+        if i >= n_lit or random.random() < FLICKER_OFF_CHANCE:
+            out.append(BLACK)
+        else:
+            out.append(
+                (random.randint(32, 255), random.randint(32, 255), random.randint(32, 255))
+            )
     return out
 
 
 def render_frame(mode: LedMode, t: float) -> list[tuple[int, int, int]]:
     if mode == LedMode.BOOT_DELAY:
-        return frame_first_pixel_flash(t, RED_HALF)
+        return frame_blink(t, RED_HALF)
     if mode == LedMode.STARTING:
-        return frame_first_pixel_flash(t, GREEN_HALF)
+        return frame_blink(t, GREEN_HALF)
     if mode == LedMode.OFF_AIR:
-        return [RED_FULL] * LED_COUNT
+        return frame_solid(RED_FULL)
     if mode == LedMode.CONNECTING:
-        return frame_rainbow(t)
+        return frame_random_flicker(4)
     if mode == LedMode.CONNECTED:
-        return frame_connected(t)
-    if mode == LedMode.USB:
-        return frame_bounce(t, BLUE_HALF)
-    return frame_bounce(t, GREEN_HALF)
+        return frame_random_flicker(3)
+    # USB dual-radio parked. Broadcasting, nobody associated: first 2.
+    # if mode == LedMode.USB:
+    #     return frame_random_flicker(2)
+    return frame_random_flicker(2)
 
 
 def limit_current(pixels: list[tuple[int, int, int]]) -> list[tuple[int, int, int]]:
@@ -306,8 +298,25 @@ def limit_current(pixels: list[tuple[int, int, int]]) -> list[tuple[int, int, in
     return [(int(r * k), int(g * k), int(b * k)) for r, g, b in pixels]
 
 
+def push_pixels(strip: PixelStrip, pixels: list[tuple[int, int, int]]) -> None:
+    for i, (r, g, b) in enumerate(pixels):
+        strip.setPixelColor(i, Color(r, g, b))
+    strip.show()
+    time.sleep(SHOW_RESET_SEC)
+    strip.show()
+
+
 def main() -> None:
-    strip = PixelStrip(LED_COUNT, LED_PIN, brightness=MAX_BRIGHTNESS, strip_type=STRIP_TYPE)
+    strip = PixelStrip(
+        num=LED_COUNT,
+        pin=LED_PIN,
+        freq_hz=LED_FREQ_HZ,
+        dma=LED_DMA,
+        invert=False,
+        brightness=MAX_BRIGHTNESS,
+        channel=LED_CHANNEL,
+        strip_type=STRIP_TYPE,
+    )
     strip.begin()
 
     mode = LedMode.OFF_AIR
@@ -324,18 +333,14 @@ def main() -> None:
 
             pixels = limit_current(render_frame(mode, now))
             if pixels != last_pixels or now - last_push >= RESYNC_INTERVAL:
-                for i, (r, g, b) in enumerate(pixels):
-                    strip.setPixelColor(i, Color(r, g, b))
-                strip.show()
+                push_pixels(strip, pixels)
                 last_pixels = pixels
                 last_push = now
             time.sleep(FRAME_INTERVAL)
     except KeyboardInterrupt:
         pass
     finally:
-        for i in range(LED_COUNT):
-            strip.setPixelColor(i, Color(0, 0, 0))
-        strip.show()
+        push_pixels(strip, frame_solid(BLACK))
 
 
 if __name__ == "__main__":

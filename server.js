@@ -13,6 +13,7 @@ const mime = {
 };
 
 // In-memory + on-disk store for local /api/posts
+const CURRENT_BURN = process.env.BURNERNET_CURRENT_BURN || 'Microburn 2026';
 const DATA_FILE = path.join(__dirname, '.api-posts.json');
 let posts = [];
 try { posts = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch {}
@@ -34,6 +35,26 @@ function jsonRes(res, code, body) {
 }
 
 async function handleApi(req, res, urlPath) {
+  if (urlPath === '/api/time') {
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const local = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate())
+      + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+    if (req.method === 'GET') {
+      return jsonRes(res, 200, {
+        unix_ms: now.getTime(),
+        local,
+        iso: local.replace(' ', 'T'),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        tz_offset: now.toTimeString().slice(9, 15),
+        ntp: null,
+        ntp_synced: null,
+      });
+    }
+    if (req.method === 'POST') {
+      return jsonRes(res, 501, { error: 'setting the clock only works on the Pi' });
+    }
+  }
   if (req.method === 'GET' && urlPath === '/api/posts') {
     return jsonRes(res, 200, posts);
   }
@@ -45,7 +66,12 @@ async function handleApi(req, res, urlPath) {
       id: newId(),
       author: (body.author || 'Anonymous').toString().trim().slice(0, 200),
       content,
-      timestamp: Date.now(),
+      timestamp: (function () {
+        const n = parseInt(body.timestamp || body.unix_ms, 10);
+        if (n >= 1600000000000 && n <= 2100000000000) return n;
+        return Date.now();
+      })(),
+      burn: CURRENT_BURN,
       archived: false
     };
     posts.push(post);

@@ -5,28 +5,31 @@ set -e
 RUN_DIR=/run/fake-wifi
 AP_ADDR=192.168.4.1
 
-is_usb_wlan() {
-    local iface=$1 subs
-    [ -e "/sys/class/net/$iface" ] || return 1
-    subs=$(readlink -f "/sys/class/net/$iface/device/subsystem" 2>/dev/null) || return 1
-    [[ "$subs" == *usb* ]] && return 0
-    return 1
-}
+# USB dual-radio parked (Sep 2026 — no dongle). Always restore home Wi-Fi.
+# is_usb_wlan() {
+#     local iface=$1 subs
+#     [ -e "/sys/class/net/$iface" ] || return 1
+#     subs=$(readlink -f "/sys/class/net/$iface/device/subsystem" 2>/dev/null) || return 1
+#     [[ "$subs" == *usb* ]] && return 0
+#     return 1
+# }
 
 PHY=$(cat "$RUN_DIR/ap-phy" 2>/dev/null || true)
 AP_IFACE=$(cat "$RUN_DIR/ap-iface" 2>/dev/null || true)
 HOME_CONN=$(cat "$RUN_DIR/home-conn" 2>/dev/null || true)
 
-SINGLE_RADIO=0
-if [ -n "$PHY" ] && ! is_usb_wlan "$PHY"; then
-    SINGLE_RADIO=1
-elif [ -n "$HOME_CONN" ]; then
-    SINGLE_RADIO=1
-    PHY=${PHY:-wlan0}
-elif [ -z "$PHY" ]; then
-    PHY=wlan0
-fi
-AP_IFACE=${AP_IFACE:-uap0}
+# Restore: SINGLE_RADIO=0 unless onboard / saved home-conn (is_usb_wlan skip).
+SINGLE_RADIO=1
+PHY=${PHY:-wlan0}
+# if [ -n "$PHY" ] && ! is_usb_wlan "$PHY"; then
+#     SINGLE_RADIO=1
+# elif [ -n "$HOME_CONN" ]; then
+#     SINGLE_RADIO=1
+#     PHY=${PHY:-wlan0}
+# elif [ -z "$PHY" ]; then
+#     PHY=wlan0
+# fi
+AP_IFACE=${AP_IFACE:-wlan0}
 
 # Stopping hostapd drops any SSH session riding on the AP itself, which would kill
 # this script long before it restores home Wi-Fi — leaving the Pi with no network
@@ -105,7 +108,8 @@ if [ "$SINGLE_RADIO" -eq 1 ]; then
         sudo nmcli device connect "$PHY" 2>/dev/null || true
     fi
     sudo rm -f "$RUN_DIR/home-conn" 2>/dev/null || true
-else
-    echo "Dual-radio: home Wi-Fi should still be up."
-    sudo rm -f "$RUN_DIR/home-conn" 2>/dev/null || true
+# USB dual-radio parked — dual-radio teardown was:
+# else
+#     echo "Dual-radio: home Wi-Fi should still be up."
+#     sudo rm -f "$RUN_DIR/home-conn" 2>/dev/null || true
 fi

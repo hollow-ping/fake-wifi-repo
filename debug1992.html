@@ -87,7 +87,9 @@
         button.success:hover {
             background: #0f9d0f;
         }
-        input[type="text"] {
+        input[type="text"],
+        input[type="date"],
+        input[type="time"] {
             padding: 0.5rem;
             background: #1e1e1e;
             border: 1px solid #3e3e42;
@@ -95,6 +97,25 @@
             border-radius: 3px;
             font-family: 'Courier New', monospace;
             width: 200px;
+        }
+        input[type="date"],
+        input[type="time"] {
+            width: auto;
+            max-width: 100%;
+            font-size: 1rem;
+        }
+        .clock-pickers {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+            margin-top: 0.75rem;
+        }
+        .clock-status {
+            margin-top: 0.75rem;
+            color: #858585;
+            font-size: 0.85rem;
+            min-height: 1.4em;
         }
         .state-badge {
             display: inline-block;
@@ -168,6 +189,30 @@
                 <div class="info-value" id="has-account">-</div>
             </div>
             <button onclick="refreshInfo()">🔄 Refresh</button>
+        </div>
+
+        <div class="section">
+            <h2>Pi Clock</h2>
+            <p style="color:#858585;margin-top:0;">What the Pi thinks right now is on the first line. After you plug in off-grid, set it from this phone (or pick date + time). New intranet posts stamp the <em>poster's</em> phone clock, not this one.</p>
+            <div class="info-grid">
+                <div class="info-label">Pi local time:</div>
+                <div class="info-value" id="pi-local-time">-</div>
+                <div class="info-label">Timezone:</div>
+                <div class="info-value" id="pi-timezone">-</div>
+                <div class="info-label">NTP synced:</div>
+                <div class="info-value" id="pi-ntp">-</div>
+                <div class="info-label">This phone:</div>
+                <div class="info-value" id="phone-local-time">-</div>
+            </div>
+            <div class="button-group">
+                <button class="success" onclick="setPiTimeFromPhone()">Set to this phone's time</button>
+            </div>
+            <div class="clock-pickers">
+                <input type="date" id="pi-date-manual" aria-label="Date">
+                <input type="time" id="pi-time-manual" step="60" aria-label="Time">
+                <button onclick="setPiTimeManual()">Set this date &amp; time</button>
+            </div>
+            <div class="clock-status" id="pi-clock-status"></div>
         </div>
         
         <div class="section">
@@ -272,6 +317,86 @@
                 .catch(() => {
                     document.getElementById('server-posts-count').textContent = 'API unreachable';
                 });
+
+            refreshPiClock();
+        }
+
+        function pad2(n) { return String(n).padStart(2, '0'); }
+        function phoneLocalStamp(d) {
+            return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate())
+                + 'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds());
+        }
+
+        function refreshPiClock() {
+            const phoneEl = document.getElementById('phone-local-time');
+            if (phoneEl) phoneEl.textContent = phoneLocalStamp(new Date()).replace('T', ' ');
+            fetch('/api/time', { cache: 'no-store' })
+                .then(r => r.ok ? r.json() : Promise.reject())
+                .then(t => {
+                    document.getElementById('pi-local-time').textContent = t.local || '-';
+                    document.getElementById('pi-timezone').textContent = (t.timezone || '-') + ' ' + (t.tz_offset || '');
+                    const ntpEl = document.getElementById('pi-ntp');
+                    if (t.ntp_synced === true) {
+                        ntpEl.textContent = 'yes';
+                        ntpEl.className = 'info-value perm';
+                    } else if (t.ntp === false) {
+                        ntpEl.textContent = 'off';
+                        ntpEl.className = 'info-value none';
+                    } else {
+                        ntpEl.textContent = 'not yet';
+                        ntpEl.className = 'info-value temp';
+                    }
+                })
+                .catch(() => {
+                    document.getElementById('pi-local-time').textContent = 'API unreachable';
+                    document.getElementById('pi-timezone').textContent = '-';
+                    document.getElementById('pi-ntp').textContent = '-';
+                });
+        }
+
+        async function postPiTime(body) {
+            const status = document.getElementById('pi-clock-status');
+            status.textContent = 'Setting…';
+            try {
+                const r = await fetch('/api/time', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                const t = await r.json();
+                if (!r.ok) throw new Error(t.error || 'failed');
+                status.textContent = 'Set to ' + (t.local || t.set_to);
+                refreshPiClock();
+            } catch (e) {
+                status.textContent = "Couldn't set time: " + (e.message || e);
+            }
+        }
+
+        function setPiTimeFromPhone() {
+            return postPiTime({ unix_ms: Date.now() });
+        }
+
+        function fillManualPickers() {
+            const d = new Date();
+            const dateEl = document.getElementById('pi-date-manual');
+            const timeEl = document.getElementById('pi-time-manual');
+            if (dateEl && !dateEl.value) {
+                dateEl.value = d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+            }
+            if (timeEl && !timeEl.value) {
+                timeEl.value = pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+            }
+        }
+
+        function setPiTimeManual() {
+            const day = document.getElementById('pi-date-manual').value;
+            const tod = document.getElementById('pi-time-manual').value;
+            if (!day || !tod) {
+                document.getElementById('pi-clock-status').textContent = 'Pick both a date and a time.';
+                return;
+            }
+            const clock = tod.length === 5 ? tod + ':00' : tod;
+            return postPiTime({ local: day + 'T' + clock });
         }
 
         // Burning-man-style random name generator
@@ -393,6 +518,7 @@
         // Initial load
         refreshInfo();
         refreshStorage();
+        fillManualPickers();
         
         // Auto-refresh every 3 seconds
         setInterval(() => {
