@@ -12,15 +12,16 @@ flowchart TB
     n4 -- Create Account --> n2
     n6 -- Create Account --> n7["Create account: CAPTCHA redirect"]
     n8["Security: Captcha1"] -- Solve --> n9["Security: Captcha2"]
-    n10["Create account: Success"] -- Connect --> n11["Connect: Ad Break"]
-    n11 -- Skip --> n17["Connect: Go"]
+    n10["Create account: Success"] -- Connect --> n30["Connect: Burngoogle"]
+    n30 -- Click --> n17["Connect: Go"]
     n5 -- Connect --> n17
     n23["Connect to Intranet?"] -- yes --> n24["Local Intranet"]
     n23 -- no --> n1
     n9 -- Solve --> n25["Make Login cookie"]
     n25 --> n10
     n7 -- Auto --> n26["Security: Home"]
-    n26 --> n8
+    n26 -- Auto --> n11["Connect: Ad Break"]
+    n11 -- Skip --> n8
     n17 -- Auto --> n27["Connect: queue"]
     n27 -- Auto --> n18["Locating Satellite"]
     n18 -- Auto --> n23
@@ -36,6 +37,7 @@ flowchart TB
     n9@{ shape: rect}
     n10@{ shape: rect}
     n11@{ shape: rect}
+    n30@{ shape: rect}
     n25@{ shape: rounded}
      n1:::Sky
      n2:::Sky
@@ -48,6 +50,7 @@ flowchart TB
      n9:::Sky
      n10:::Sky
      n11:::Sky
+     n30:::Sky
      n17:::Sky
      n23:::Sky
      n24:::Sky
@@ -68,6 +71,7 @@ flowchart TB
     click n9 "/verify/captcha_y2qu.html"
     click n10 "/create-account/success.html"
     click n11 "/connect/ad-break.html"
+    click n30 "/connect/fake-google.html"
     click n17 "/connect/go.html"
     click n23 "/connect/error666.html"
     click n24 "/intranet/home.html"

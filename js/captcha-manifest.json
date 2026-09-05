@@ -1,6 +1,63 @@
 {
   "captchas": [
     {
+      "folder": "Bruno",
+      "question": "Pick all the images of our mascot Bruno.",
+      "right": [
+        "Bruno 2.jpg",
+        "Bruno 3.jpg",
+        "Bruno 4.jpg",
+        "Bruno 5.jpg",
+        "Bruno 6.jpg",
+        "Bruno 7.jpg",
+        "Bruno 8.jpg",
+        "Untitled.jpg",
+        "d3734d1e-9669-4206-b8.avif"
+      ],
+      "wrong": [
+        "NotBruno-01.jpg",
+        "NotBruno-02.jpg",
+        "NotBruno-03.jpg",
+        "NotBruno-04.jpg",
+        "NotBruno-05.jpg",
+        "NotBruno-06.jpg",
+        "NotBruno-07.jpg",
+        "NotBruno-08.jpg",
+        "NotBruno-09.jpg",
+        "NotBruno-10.jpg"
+      ]
+    },
+    {
+      "folder": "New York City",
+      "question": "Pick all the images of New York City.",
+      "right": [
+        "NYC-01.jpg",
+        "NYC-02.jpg",
+        "NYC-03.jpg",
+        "NYC-04.jpg",
+        "NYC-05.jpg",
+        "NYC-06.avif",
+        "NYC-06.jpg",
+        "NYC-07.jpg",
+        "NYC-08.jpg"
+      ],
+      "wrong": [
+        "BFE-01.jpg",
+        "BFE-02.jpg",
+        "BFE-03.jpg",
+        "BFE-04.jpg",
+        "BFE-05.jpg",
+        "BFE-06.jpg",
+        "BFE-07.jpg",
+        "BFE-08.jpg",
+        "BFE-09.jpg",
+        "BFE-10.jpg",
+        "BFE-11.jpg",
+        "BFE-12.jpg",
+        "BFE-13.jpg"
+      ]
+    },
+    {
       "folder": "Bob Ross",
       "question": "Pick all the images of Bob Ross.",
       "right": [

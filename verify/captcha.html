@@ -194,14 +194,22 @@
             return shuffle([...arr]).slice(0, n);
         }
 
-        // Load manifest, pick 2 random captchas from the 3
+        // Load manifest: always show "Bruno" first, then one random other captcha.
         async function loadManifest() {
             const response = await fetch('../js/captcha-manifest.json');
             const data = await response.json();
             const captchas = data.captchas || [];
             if (captchas.length === 0) throw new Error('No captchas configured in manifest');
-            const shuffled = shuffle([...captchas]);
-            selectedCaptchas = shuffled.slice(0, 2);
+
+            const first = captchas.find(c => c.folder === 'Bruno');
+            const rest = captchas.filter(c => c.folder !== 'Bruno');
+
+            if (first && rest.length > 0) {
+                selectedCaptchas = [first, shuffle([...rest])[0]];
+            } else {
+                // Fallback: no Bruno entry (or nothing else) — just pick 2 at random.
+                selectedCaptchas = shuffle([...captchas]).slice(0, 2);
+            }
         }
 
         // Load and render the current captcha

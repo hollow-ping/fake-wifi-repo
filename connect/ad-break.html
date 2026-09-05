@@ -5,97 +5,72 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Connect: Ad Break</title>
     <style>
-        /* Burner ticket queue theme - Orange/red ticket site aesthetic */
+        /* Corporate auth portal theme - Clean blue/white (matches create-account pages) */
         body {
             margin: 0;
             padding: 0;
-            font-family: Arial, sans-serif;
-            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
-            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #e0f6da;
+            color: #333;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
         }
         .container {
-            text-align: center;
+            background: white;
             padding: 2rem;
-            max-width: 720px;
-            width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            max-width: 560px;
+            width: 92%;
+            text-align: center;
         }
         h1 {
+            color: #189385;
             font-size: 2.5rem;
-            margin-bottom: 0.25rem;
-        }
-        .sponsored-by {
-            font-size: 0.95rem;
-            opacity: 0.85;
-            margin-bottom: 1.25rem;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
+            margin-bottom: 1.5rem;
         }
         .ad-content {
-            border-radius: 8px;
-            overflow: hidden;
-            margin: 0 0 1.5rem 0;
+            margin: 1rem 0 0.5rem;
         }
         .ad-content img {
-            width: 100%;
-            height: auto;
             display: block;
-        }
-        .skip-button {
-            margin-top: 1rem;
+            max-width: 100%;
+            max-height: 78vh;
+            width: auto;
+            margin: 0 auto;
+            border-radius: 4px;
         }
         button {
-            padding: 0.85rem 2rem;
-            background: rgba(255,255,255,0.2);
+            width: 100%;
+            padding: 0.75rem;
+            background: #189385;
             color: white;
-            border: 2px solid white;
-            border-radius: 5px;
+            border: none;
+            border-radius: 4px;
             cursor: pointer;
-            font-size: 1.1rem;
-            transition: background 0.2s;
+            font-size: 1rem;
+            margin-top: 1rem;
         }
-        button:not(:disabled):hover {
-            background: rgba(255,255,255,0.35);
-        }
-        button:disabled {
-            opacity: 0.55;
-            cursor: default;
+        button:hover {
+            background: #157a6d;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1><em>BURNER-NET</em></h1>
-        <div class="sponsored-by">Sponsored By:</div>
+        <h1><em>BURNER-NET</em> AUTH QUEUE</h1>
         <div class="ad-content">
-            <img id="adImg" src="" alt="Ad">
+            <img src="../images/pdf-bubbles-ad.jpg" alt="PDF Bubbles Ad">
         </div>
-        <div class="skip-button">
-            <button id="skipBtn" disabled>Skip ad in 4</button>
-        </div>
+        <button onclick="window.location.href='../verify/captcha.html'">Skip Ad</button>
     </div>
     <script>
-        const ads = ['ads/ad1.jpg', 'ads/ad2.jpg', 'ads/ad3.jpg'];
-        document.getElementById('adImg').src = ads[Math.floor(Math.random() * ads.length)];
-
-        let countdown = 4;
-        const btn = document.getElementById('skipBtn');
-        const timer = setInterval(() => {
-            countdown--;
-            if (countdown > 0) {
-                btn.textContent = 'Skip ad in ' + countdown;
-            } else {
-                clearInterval(timer);
-                btn.textContent = 'Skip Ad';
-                btn.disabled = false;
-                btn.onclick = () => window.location.href = 'sparkle-pony.html';
-            }
-        }, 1000);
+        // Auto-redirect after 3 seconds
+        setTimeout(() => {
+            window.location.href = '../verify/captcha.html';
+        }, 3000);
     </script>
-    <script src="../js/led-portal.js"></script>
-    <script>BurnerLedPortal.connecting();</script>
 </body>
 </html>
